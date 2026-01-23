@@ -598,46 +598,102 @@
 
         currentTitle = extracted.title;
 
-        // Step 2: Convert to speech
-        showStatus(`Converting ${extracted.wordCount} words to speech (~${extracted.estimatedMinutes} min)...`, 'loading');
-
+        // Step 2: Convert to speech with streaming
         const voice = voiceSelect.value;
         const speed = parseFloat(speedSelect.value);
 
-        const speakRes = await fetch('/api/speak', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: extracted.text,
-            voice,
-            speed,
-          }),
-        });
+        // Split text into chunks for streaming playback
+        const maxChunkSize = 4000;
+        const textChunks = [];
+        const fullText = extracted.text;
 
-        if (!speakRes.ok) {
-          const errText = await speakRes.text();
-          let errMsg = 'Failed to generate speech';
-          try {
-            const errJson = JSON.parse(errText);
-            errMsg = errJson.error || errMsg;
-          } catch (e) {}
-          throw new Error(errMsg);
+        for (let i = 0; i < fullText.length; i += maxChunkSize) {
+          textChunks.push(fullText.slice(i, i + maxChunkSize));
         }
 
-        // Create audio blob
-        currentAudioBlob = await speakRes.blob();
-        const audioUrl = URL.createObjectURL(currentAudioBlob);
-
-        // Update player
+        // Update player UI immediately
         articleTitle.textContent = extracted.title;
         articleMeta.textContent = `${extracted.wordCount} words • ~${extracted.estimatedMinutes} min`;
-        audioPlayer.src = audioUrl;
         playerSection.classList.add('visible');
 
-        showStatus('Ready to play!', 'success');
+        // Audio queue for streaming playback
+        const audioQueue = [];
+        let currentChunkIndex = 0;
+        let isPlaying = false;
+        let allChunksLoaded = false;
 
-        // Auto-play
-        audioPlayer.play();
+        // Function to play next chunk
+        const playNextChunk = () => {
+          if (currentChunkIndex < audioQueue.length) {
+            const audioUrl = URL.createObjectURL(audioQueue[currentChunkIndex]);
+            audioPlayer.src = audioUrl;
+            audioPlayer.play();
+            isPlaying = true;
+            currentChunkIndex++;
+
+            if (allChunksLoaded && currentChunkIndex === audioQueue.length) {
+              showStatus('Playing...', 'success');
+            } else {
+              showStatus(`Playing chunk ${currentChunkIndex}/${textChunks.length}...`, 'loading');
+            }
+          } else if (allChunksLoaded) {
+            showStatus('Finished!', 'success');
+            isPlaying = false;
+          }
+        };
+
+        // When audio ends, play next chunk
+        audioPlayer.onended = () => {
+          if (currentChunkIndex < audioQueue.length || !allChunksLoaded) {
+            playNextChunk();
+          } else {
+            showStatus('Finished!', 'success');
+          }
+        };
+
+        // Fetch chunks and start playing as soon as first one is ready
+        showStatus(`Loading audio (0/${textChunks.length} chunks)...`, 'loading');
+
+        for (let i = 0; i < textChunks.length; i++) {
+          const speakRes = await fetch('/api/speak', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: textChunks[i],
+              voice,
+              speed,
+            }),
+          });
+
+          if (!speakRes.ok) {
+            const errText = await speakRes.text();
+            let errMsg = 'Failed to generate speech';
+            try {
+              const errJson = JSON.parse(errText);
+              errMsg = errJson.error || errMsg;
+            } catch (e) {}
+            throw new Error(errMsg);
+          }
+
+          const blob = await speakRes.blob();
+          audioQueue.push(blob);
+
+          showStatus(`Loading audio (${i + 1}/${textChunks.length} chunks)...`, 'loading');
+
+          // Start playing as soon as first chunk is ready
+          if (i === 0) {
+            playNextChunk();
+          }
+        }
+
+        allChunksLoaded = true;
+        currentAudioBlob = new Blob(audioQueue, { type: 'audio/mpeg' });
+
+        if (!isPlaying && audioQueue.length > 0) {
+          playNextChunk();
+        } else if (currentChunkIndex === audioQueue.length) {
+          showStatus('Playing...', 'success');
+        }
 
       } catch (error) {
         console.error(error);

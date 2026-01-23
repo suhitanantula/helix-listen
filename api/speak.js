@@ -1,7 +1,7 @@
 // API endpoint to convert text to speech using OpenAI
 
 export const config = {
-  maxDuration: 300, // 5 minutes for long documents
+  maxDuration: 60,
 };
 
 export default async function handler(req, res) {
@@ -30,57 +30,34 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No text provided' });
     }
 
-    // OpenAI TTS has a 4096 character limit per request
-    // For longer text, we'll process in chunks
-    const maxChunkSize = 4000;
-    const chunks = [];
+    // Limit to 4000 chars per request (client handles chunking)
+    const inputText = text.slice(0, 4000);
 
-    for (let i = 0; i < text.length; i += maxChunkSize) {
-      chunks.push(text.slice(i, i + maxChunkSize));
+    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'tts-1',
+        input: inputText,
+        voice: voice,
+        speed: speed,
+      }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `OpenAI API error: ${response.status}`);
     }
 
-    // Process chunks in parallel batches of 5 for speed
-    const batchSize = 5;
-    const audioBuffers = new Array(chunks.length);
-
-    for (let i = 0; i < chunks.length; i += batchSize) {
-      const batch = chunks.slice(i, i + batchSize);
-      const batchPromises = batch.map(async (chunk, idx) => {
-        const response = await fetch('https://api.openai.com/v1/audio/speech', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'tts-1',
-            input: chunk,
-            voice: voice,
-            speed: speed,
-          }),
-        });
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error?.message || `OpenAI API error: ${response.status}`);
-        }
-
-        return { index: i + idx, buffer: Buffer.from(await response.arrayBuffer()) };
-      });
-
-      const results = await Promise.all(batchPromises);
-      results.forEach(({ index, buffer }) => {
-        audioBuffers[index] = buffer;
-      });
-    }
-
-    // Concatenate all audio buffers in order
-    const combinedBuffer = Buffer.concat(audioBuffers);
+    const buffer = Buffer.from(await response.arrayBuffer());
 
     // Return as audio stream
     res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Content-Length', combinedBuffer.length);
-    return res.send(combinedBuffer);
+    res.setHeader('Content-Length', buffer.length);
+    return res.send(buffer);
   } catch (error) {
     console.error('TTS error:', error);
     return res.status(500).json({ error: error.message });
