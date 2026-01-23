@@ -1,0 +1,41 @@
+{
+  "name": "Helix Listen",
+  "short_name": "Helix Listen",
+  "description": "Convert articles and PDFs to high-quality audio",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "url": "url",
+      "text": "text",
+      "title": "title"
+    }
+  },
+  "categories": ["utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Paste URL",
+      "url": "/",
+      "description": "Convert an article URL to audio"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "listen-app",
+  "version": "1.0.0",
+  "description": "Simple app to convert articles and PDFs to speech",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step needed'",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.5.0",
+    "jsdom": "^24.0.0",
+    "openai": "^4.28.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
