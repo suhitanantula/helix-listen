@@ -617,49 +617,49 @@
         playerSection.classList.add('visible');
 
         // Audio queue for streaming playback
-        const audioQueue = [];
+        const audioQueue = new Array(textChunks.length).fill(null);
         let currentChunkIndex = 0;
+        let loadedCount = 0;
         let isPlaying = false;
-        let allChunksLoaded = false;
+        let waitingForChunk = false;
 
         // Function to play next chunk
         const playNextChunk = () => {
-          if (currentChunkIndex < audioQueue.length) {
+          if (currentChunkIndex < textChunks.length && audioQueue[currentChunkIndex]) {
             const audioUrl = URL.createObjectURL(audioQueue[currentChunkIndex]);
             audioPlayer.src = audioUrl;
-            audioPlayer.play();
+            audioPlayer.play().catch(() => {
+              // Auto-play blocked, user needs to tap play
+              showStatus('Tap play to start', 'success');
+            });
             isPlaying = true;
+            waitingForChunk = false;
             currentChunkIndex++;
-
-            if (allChunksLoaded && currentChunkIndex === audioQueue.length) {
-              showStatus('Playing...', 'success');
-            } else {
-              showStatus(`Playing chunk ${currentChunkIndex}/${textChunks.length}...`, 'loading');
-            }
-          } else if (allChunksLoaded) {
+            showStatus(`Playing ${currentChunkIndex}/${textChunks.length}...`, 'loading');
+          } else if (currentChunkIndex >= textChunks.length) {
             showStatus('Finished!', 'success');
             isPlaying = false;
+          } else {
+            // Chunk not ready yet, wait for it
+            waitingForChunk = true;
+            showStatus(`Buffering chunk ${currentChunkIndex + 1}...`, 'loading');
           }
         };
 
         // When audio ends, play next chunk
         audioPlayer.onended = () => {
-          if (currentChunkIndex < audioQueue.length || !allChunksLoaded) {
-            playNextChunk();
-          } else {
-            showStatus('Finished!', 'success');
-          }
+          playNextChunk();
         };
 
-        // Fetch chunks and start playing as soon as first one is ready
+        // Fetch all chunks in parallel
         showStatus(`Loading audio (0/${textChunks.length} chunks)...`, 'loading');
 
-        for (let i = 0; i < textChunks.length; i++) {
+        const fetchChunk = async (index) => {
           const speakRes = await fetch('/api/speak', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              text: textChunks[i],
+              text: textChunks[index],
               voice,
               speed,
             }),
@@ -675,24 +675,37 @@
             throw new Error(errMsg);
           }
 
-          const blob = await speakRes.blob();
-          audioQueue.push(blob);
+          return speakRes.blob();
+        };
 
-          showStatus(`Loading audio (${i + 1}/${textChunks.length} chunks)...`, 'loading');
+        // Start all fetches in parallel
+        const fetchPromises = textChunks.map((_, index) =>
+          fetchChunk(index).then(blob => {
+            audioQueue[index] = blob;
+            loadedCount++;
 
-          // Start playing as soon as first chunk is ready
-          if (i === 0) {
-            playNextChunk();
-          }
-        }
+            if (!isPlaying) {
+              showStatus(`Loading audio (${loadedCount}/${textChunks.length} chunks)...`, 'loading');
+            }
 
-        allChunksLoaded = true;
+            // Start playing as soon as first chunk is ready
+            if (index === 0 && !isPlaying) {
+              playNextChunk();
+            }
+
+            // If we were waiting for this chunk, play it now
+            if (waitingForChunk && index === currentChunkIndex) {
+              playNextChunk();
+            }
+          })
+        );
+
+        // Wait for all to complete
+        await Promise.all(fetchPromises);
         currentAudioBlob = new Blob(audioQueue, { type: 'audio/mpeg' });
 
-        if (!isPlaying && audioQueue.length > 0) {
-          playNextChunk();
-        } else if (currentChunkIndex === audioQueue.length) {
-          showStatus('Playing...', 'success');
+        if (loadedCount === textChunks.length && isPlaying) {
+          showStatus(`Playing ${currentChunkIndex}/${textChunks.length}...`, 'success');
         }
 
       } catch (error) {
