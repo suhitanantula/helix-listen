@@ -598,11 +598,11 @@
 
         currentTitle = extracted.title;
 
-        // Step 2: Convert to speech with streaming
+        // Step 2: Convert to speech
         const voice = voiceSelect.value;
         const speed = parseFloat(speedSelect.value);
 
-        // Split text into chunks for streaming playback
+        // Split text into chunks
         const maxChunkSize = 4000;
         const textChunks = [];
         const fullText = extracted.text;
@@ -611,49 +611,9 @@
           textChunks.push(fullText.slice(i, i + maxChunkSize));
         }
 
-        // Update player UI immediately
-        articleTitle.textContent = extracted.title;
-        articleMeta.textContent = `${extracted.wordCount} words • ~${extracted.estimatedMinutes} min`;
-        playerSection.classList.add('visible');
+        showStatus(`Converting to audio (0/${textChunks.length} parts)...`, 'loading');
 
-        // Audio queue for streaming playback
-        const audioQueue = new Array(textChunks.length).fill(null);
-        let currentChunkIndex = 0;
-        let loadedCount = 0;
-        let isPlaying = false;
-        let waitingForChunk = false;
-
-        // Function to play next chunk
-        const playNextChunk = () => {
-          if (currentChunkIndex < textChunks.length && audioQueue[currentChunkIndex]) {
-            const audioUrl = URL.createObjectURL(audioQueue[currentChunkIndex]);
-            audioPlayer.src = audioUrl;
-            audioPlayer.play().catch(() => {
-              // Auto-play blocked, user needs to tap play
-              showStatus('Tap play to start', 'success');
-            });
-            isPlaying = true;
-            waitingForChunk = false;
-            currentChunkIndex++;
-            showStatus(`Playing ${currentChunkIndex}/${textChunks.length}...`, 'loading');
-          } else if (currentChunkIndex >= textChunks.length) {
-            showStatus('Finished!', 'success');
-            isPlaying = false;
-          } else {
-            // Chunk not ready yet, wait for it
-            waitingForChunk = true;
-            showStatus(`Buffering chunk ${currentChunkIndex + 1}...`, 'loading');
-          }
-        };
-
-        // When audio ends, play next chunk
-        audioPlayer.onended = () => {
-          playNextChunk();
-        };
-
-        // Fetch all chunks in parallel
-        showStatus(`Loading audio (0/${textChunks.length} chunks)...`, 'loading');
-
+        // Fetch chunk function
         const fetchChunk = async (index) => {
           const speakRes = await fetch('/api/speak', {
             method: 'POST',
@@ -678,35 +638,34 @@
           return speakRes.blob();
         };
 
-        // Start all fetches in parallel
-        const fetchPromises = textChunks.map((_, index) =>
+        // Load all chunks in parallel with progress
+        const audioChunks = new Array(textChunks.length);
+        let loadedCount = 0;
+
+        await Promise.all(textChunks.map((_, index) =>
           fetchChunk(index).then(blob => {
-            audioQueue[index] = blob;
+            audioChunks[index] = blob;
             loadedCount++;
-
-            if (!isPlaying) {
-              showStatus(`Loading audio (${loadedCount}/${textChunks.length} chunks)...`, 'loading');
-            }
-
-            // Start playing as soon as first chunk is ready
-            if (index === 0 && !isPlaying) {
-              playNextChunk();
-            }
-
-            // If we were waiting for this chunk, play it now
-            if (waitingForChunk && index === currentChunkIndex) {
-              playNextChunk();
-            }
+            showStatus(`Converting to audio (${loadedCount}/${textChunks.length} parts)...`, 'loading');
           })
-        );
+        ));
 
-        // Wait for all to complete
-        await Promise.all(fetchPromises);
-        currentAudioBlob = new Blob(audioQueue, { type: 'audio/mpeg' });
+        // Combine all chunks into one audio file
+        currentAudioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+        const audioUrl = URL.createObjectURL(currentAudioBlob);
 
-        if (loadedCount === textChunks.length && isPlaying) {
-          showStatus(`Playing ${currentChunkIndex}/${textChunks.length}...`, 'success');
-        }
+        // Update player
+        articleTitle.textContent = extracted.title;
+        articleMeta.textContent = `${extracted.wordCount} words • ~${extracted.estimatedMinutes} min`;
+        audioPlayer.src = audioUrl;
+        playerSection.classList.add('visible');
+
+        showStatus('Ready to play!', 'success');
+
+        // Auto-play
+        audioPlayer.play().catch(() => {
+          showStatus('Tap play to start', 'success');
+        })
 
       } catch (error) {
         console.error(error);
