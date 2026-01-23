@@ -1,5 +1,4 @@
 // API endpoint to convert text to speech using OpenAI
-import OpenAI from 'openai';
 
 export const config = {
   maxDuration: 60,
@@ -40,20 +39,30 @@ export default async function handler(req, res) {
       chunks.push(text.slice(i, i + maxChunkSize));
     }
 
-    const openai = new OpenAI({ apiKey });
-
     // Process all chunks and concatenate audio
     const audioBuffers = [];
 
     for (const chunk of chunks) {
-      const mp3 = await openai.audio.speech.create({
-        model: 'tts-1',
-        voice: voice,
-        input: chunk,
-        speed: speed,
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          input: chunk,
+          voice: voice,
+          speed: speed,
+        }),
       });
 
-      const buffer = Buffer.from(await mp3.arrayBuffer());
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `OpenAI API error: ${response.status}`);
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
       audioBuffers.push(buffer);
     }
 
