@@ -9,6 +9,8 @@
   <title>Helix Listen</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icon-192.png">
+  <!-- PDF.js for client-side PDF extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -65,7 +67,7 @@
       margin-bottom: 8px;
     }
 
-    input[type="text"], input[type="url"] {
+    input[type="text"], input[type="url"], textarea {
       width: 100%;
       padding: 14px 16px;
       border: 2px solid rgba(255, 255, 255, 0.1);
@@ -74,9 +76,15 @@
       color: #fff;
       font-size: 16px;
       transition: border-color 0.2s;
+      font-family: inherit;
     }
 
-    input:focus {
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    input:focus, textarea:focus {
       outline: none;
       border-color: #e94560;
     }
@@ -117,6 +125,37 @@
       color: #666;
       margin: 15px 0;
       font-size: 0.8rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #888;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      background: rgba(233, 69, 96, 0.2);
+      color: #e94560;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
     }
 
     .options {
@@ -317,6 +356,12 @@
     .footer a:hover {
       text-decoration: underline;
     }
+
+    .hint {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body>
@@ -325,21 +370,41 @@
     <p class="tagline">Turn any article or PDF into audio</p>
 
     <div class="input-section">
-      <div class="input-group">
-        <label for="url-input">Paste article URL</label>
-        <input type="url" id="url-input" placeholder="https://example.com/article">
+      <!-- Input Type Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="url">URL</button>
+        <button class="tab" data-tab="pdf">PDF</button>
+        <button class="tab" data-tab="text">Paste Text</button>
       </div>
 
-      <div class="divider">— or —</div>
+      <!-- URL Tab -->
+      <div class="tab-content active" id="tab-url">
+        <div class="input-group">
+          <label for="url-input">Paste article URL</label>
+          <input type="url" id="url-input" placeholder="https://example.com/article">
+          <p class="hint">Works best with blogs, news sites without paywalls</p>
+        </div>
+      </div>
 
-      <div class="input-group">
-        <label>Upload a PDF</label>
-        <div class="file-input-wrapper">
-          <label class="file-input-label" id="file-label">
-            <span>📄</span>
-            <span id="file-name">Choose PDF file</span>
-          </label>
-          <input type="file" id="pdf-input" accept=".pdf">
+      <!-- PDF Tab -->
+      <div class="tab-content" id="tab-pdf">
+        <div class="input-group">
+          <label>Upload a PDF</label>
+          <div class="file-input-wrapper">
+            <label class="file-input-label" id="file-label">
+              <span>📄</span>
+              <span id="file-name">Choose PDF file</span>
+            </label>
+            <input type="file" id="pdf-input" accept=".pdf">
+          </div>
+        </div>
+      </div>
+
+      <!-- Text Tab -->
+      <div class="tab-content" id="tab-text">
+        <div class="input-group">
+          <label for="text-input">Paste your text</label>
+          <textarea id="text-input" placeholder="Paste article text here..."></textarea>
         </div>
       </div>
 
@@ -396,9 +461,13 @@
   </div>
 
   <script>
+    // Initialize PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
     // Elements
     const urlInput = document.getElementById('url-input');
     const pdfInput = document.getElementById('pdf-input');
+    const textInput = document.getElementById('text-input');
     const fileLabel = document.getElementById('file-label');
     const fileName = document.getElementById('file-name');
     const voiceSelect = document.getElementById('voice-select');
@@ -413,6 +482,18 @@
 
     let currentAudioBlob = null;
     let currentTitle = '';
+    let activeTab = 'url';
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        activeTab = tab.dataset.tab;
+        document.getElementById(`tab-${activeTab}`).classList.add('active');
+      });
+    });
 
     // Handle PDF file selection
     pdfInput.addEventListener('change', (e) => {
@@ -420,26 +501,42 @@
         const file = e.target.files[0];
         fileName.textContent = file.name;
         fileLabel.classList.add('has-file');
-        urlInput.value = ''; // Clear URL if PDF selected
       }
     });
 
-    // Clear PDF when URL is entered
-    urlInput.addEventListener('input', () => {
-      if (urlInput.value) {
-        pdfInput.value = '';
-        fileName.textContent = 'Choose PDF file';
-        fileLabel.classList.remove('has-file');
+    // Extract text from PDF using PDF.js (client-side)
+    async function extractPdfText(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n\n';
       }
-    });
+
+      return fullText.trim();
+    }
 
     // Convert button handler
     convertBtn.addEventListener('click', async () => {
       const url = urlInput.value.trim();
       const pdfFile = pdfInput.files[0];
+      const pastedText = textInput.value.trim();
 
-      if (!url && !pdfFile) {
-        showStatus('Please enter a URL or upload a PDF', 'error');
+      // Check based on active tab
+      if (activeTab === 'url' && !url) {
+        showStatus('Please enter a URL', 'error');
+        return;
+      }
+      if (activeTab === 'pdf' && !pdfFile) {
+        showStatus('Please upload a PDF', 'error');
+        return;
+      }
+      if (activeTab === 'text' && !pastedText) {
+        showStatus('Please paste some text', 'error');
         return;
       }
 
@@ -448,29 +545,57 @@
       playerSection.classList.remove('visible');
 
       try {
-        // Step 1: Extract text
-        showStatus('Extracting text...', 'loading');
+        let extracted;
 
-        let extractBody = {};
-        if (url) {
-          extractBody = { url };
-        } else if (pdfFile) {
-          const base64 = await fileToBase64(pdfFile);
-          extractBody = { pdfBase64: base64 };
+        if (activeTab === 'text') {
+          // Direct text - skip extraction API
+          const wordCount = pastedText.split(/\s+/).length;
+          extracted = {
+            title: 'Pasted Text',
+            text: pastedText,
+            wordCount,
+            estimatedMinutes: Math.ceil(wordCount / 150),
+          };
+        } else if (activeTab === 'pdf') {
+          // Extract PDF text client-side
+          showStatus('Extracting text from PDF...', 'loading');
+          const pdfText = await extractPdfText(pdfFile);
+
+          if (!pdfText || pdfText.length < 50) {
+            throw new Error('Could not extract text from PDF. The file may be scanned or image-based.');
+          }
+
+          const wordCount = pdfText.split(/\s+/).length;
+          extracted = {
+            title: pdfFile.name.replace('.pdf', ''),
+            text: pdfText,
+            wordCount,
+            estimatedMinutes: Math.ceil(wordCount / 150),
+          };
+        } else {
+          // URL - use server-side extraction
+          showStatus('Extracting article...', 'loading');
+
+          const extractRes = await fetch('/api/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+          });
+
+          const responseText = await extractRes.text();
+
+          try {
+            extracted = JSON.parse(responseText);
+          } catch (e) {
+            console.error('Response was not JSON:', responseText.substring(0, 200));
+            throw new Error('Server error. The site may be blocking access. Try pasting the text directly.');
+          }
+
+          if (!extractRes.ok) {
+            throw new Error(extracted.error || 'Failed to extract article');
+          }
         }
 
-        const extractRes = await fetch('/api/extract', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(extractBody),
-        });
-
-        if (!extractRes.ok) {
-          const err = await extractRes.json();
-          throw new Error(err.error || 'Failed to extract text');
-        }
-
-        const extracted = await extractRes.json();
         currentTitle = extracted.title;
 
         // Step 2: Convert to speech
@@ -490,8 +615,13 @@
         });
 
         if (!speakRes.ok) {
-          const err = await speakRes.json();
-          throw new Error(err.error || 'Failed to generate speech');
+          const errText = await speakRes.text();
+          let errMsg = 'Failed to generate speech';
+          try {
+            const errJson = JSON.parse(errText);
+            errMsg = errJson.error || errMsg;
+          } catch (e) {}
+          throw new Error(errMsg);
         }
 
         // Create audio blob
@@ -538,29 +668,44 @@
       status.className = 'status ' + type;
     }
 
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+    // Handle share target and extension parameters
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Check for text from extension
+    const extensionText = urlParams.get('text');
+    const extensionTitle = urlParams.get('title');
+    const extensionVoice = urlParams.get('voice');
+    const extensionSpeed = urlParams.get('speed');
+    const autoplay = urlParams.get('autoplay');
+
+    if (extensionText) {
+      // Switch to text tab and fill in
+      document.querySelector('[data-tab="text"]').click();
+      textInput.value = decodeURIComponent(extensionText);
+
+      if (extensionVoice) voiceSelect.value = extensionVoice;
+      if (extensionSpeed) speedSelect.value = extensionSpeed;
+
+      // Auto-convert if requested
+      if (autoplay === 'true') {
+        setTimeout(() => convertBtn.click(), 500);
+      }
+    } else {
+      // Handle shared URL
+      const sharedUrl = urlParams.get('url');
+      if (sharedUrl) {
+        const urlMatch = sharedUrl.match(/https?:\/\/[^\s]+/);
+        if (urlMatch) {
+          urlInput.value = urlMatch[0];
+        } else {
+          urlInput.value = sharedUrl;
+        }
+      }
     }
 
-    // Handle share target (when app receives shared URL)
-    const urlParams = new URLSearchParams(window.location.search);
-    const sharedUrl = urlParams.get('url') || urlParams.get('text');
-    if (sharedUrl) {
-      // Extract URL from shared text if needed
-      const urlMatch = sharedUrl.match(/https?:\/\/[^\s]+/);
-      if (urlMatch) {
-        urlInput.value = urlMatch[0];
-      } else {
-        urlInput.value = sharedUrl;
-      }
+    // Clean up URL (remove params after reading)
+    if (urlParams.toString()) {
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     // PWA Install prompt
