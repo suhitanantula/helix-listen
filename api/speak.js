@@ -1,7 +1,7 @@
 // API endpoint to convert text to speech using OpenAI
 
 export const config = {
-  maxDuration: 300, // 5 minutes max for long documents
+  maxDuration: 60, // Free tier max (with Fluid Compute)
 };
 
 export default async function handler(req, res) {
