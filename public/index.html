@@ -599,59 +599,33 @@
         currentTitle = extracted.title;
 
         // Step 2: Convert to speech
+        showStatus(`Converting ${extracted.wordCount} words to speech (~${extracted.estimatedMinutes} min)...`, 'loading');
+
         const voice = voiceSelect.value;
         const speed = parseFloat(speedSelect.value);
 
-        // Split text into chunks
-        const maxChunkSize = 4000;
-        const textChunks = [];
-        const fullText = extracted.text;
+        const speakRes = await fetch('/api/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: extracted.text,
+            voice,
+            speed,
+          }),
+        });
 
-        for (let i = 0; i < fullText.length; i += maxChunkSize) {
-          textChunks.push(fullText.slice(i, i + maxChunkSize));
+        if (!speakRes.ok) {
+          const errText = await speakRes.text();
+          let errMsg = 'Failed to generate speech';
+          try {
+            const errJson = JSON.parse(errText);
+            errMsg = errJson.error || errMsg;
+          } catch (e) {}
+          throw new Error(errMsg);
         }
 
-        showStatus(`Converting to audio (0/${textChunks.length} parts)...`, 'loading');
-
-        // Fetch chunk function
-        const fetchChunk = async (index) => {
-          const speakRes = await fetch('/api/speak', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: textChunks[index],
-              voice,
-              speed,
-            }),
-          });
-
-          if (!speakRes.ok) {
-            const errText = await speakRes.text();
-            let errMsg = 'Failed to generate speech';
-            try {
-              const errJson = JSON.parse(errText);
-              errMsg = errJson.error || errMsg;
-            } catch (e) {}
-            throw new Error(errMsg);
-          }
-
-          return speakRes.blob();
-        };
-
-        // Load all chunks in parallel with progress
-        const audioChunks = new Array(textChunks.length);
-        let loadedCount = 0;
-
-        await Promise.all(textChunks.map((_, index) =>
-          fetchChunk(index).then(blob => {
-            audioChunks[index] = blob;
-            loadedCount++;
-            showStatus(`Converting to audio (${loadedCount}/${textChunks.length} parts)...`, 'loading');
-          })
-        ));
-
-        // Combine all chunks into one audio file
-        currentAudioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+        // Create audio blob
+        currentAudioBlob = await speakRes.blob();
         const audioUrl = URL.createObjectURL(currentAudioBlob);
 
         // Update player
