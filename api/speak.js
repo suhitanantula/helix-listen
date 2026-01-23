@@ -1,7 +1,7 @@
 // API endpoint to convert text to speech using OpenAI
 
 export const config = {
-  maxDuration: 60,
+  maxDuration: 300, // 5 minutes for long documents
 };
 
 export default async function handler(req, res) {
@@ -39,34 +39,42 @@ export default async function handler(req, res) {
       chunks.push(text.slice(i, i + maxChunkSize));
     }
 
-    // Process all chunks and concatenate audio
-    const audioBuffers = [];
+    // Process chunks in parallel batches of 5 for speed
+    const batchSize = 5;
+    const audioBuffers = new Array(chunks.length);
 
-    for (const chunk of chunks) {
-      const response = await fetch('https://api.openai.com/v1/audio/speech', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'tts-1',
-          input: chunk,
-          voice: voice,
-          speed: speed,
-        }),
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batch = chunks.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (chunk, idx) => {
+        const response = await fetch('https://api.openai.com/v1/audio/speech', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'tts-1',
+            input: chunk,
+            voice: voice,
+            speed: speed,
+          }),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error?.message || `OpenAI API error: ${response.status}`);
+        }
+
+        return { index: i + idx, buffer: Buffer.from(await response.arrayBuffer()) };
       });
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `OpenAI API error: ${response.status}`);
-      }
-
-      const buffer = Buffer.from(await response.arrayBuffer());
-      audioBuffers.push(buffer);
+      const results = await Promise.all(batchPromises);
+      results.forEach(({ index, buffer }) => {
+        audioBuffers[index] = buffer;
+      });
     }
 
-    // Concatenate all audio buffers
+    // Concatenate all audio buffers in order
     const combinedBuffer = Buffer.concat(audioBuffers);
 
     // Return as audio stream
