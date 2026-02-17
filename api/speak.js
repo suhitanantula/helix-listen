@@ -38,60 +38,51 @@ export default async function handler(req, res) {
       chunks.push(text.slice(i, i + maxChunkSize));
     }
 
-    // Process chunks in parallel batches of 3
-    const batchSize = 3;
-    const audioBuffers = new Array(chunks.length);
+    // Process chunks sequentially to avoid rate limits
+    const audioBuffers = [];
 
-    for (let i = 0; i < chunks.length; i += batchSize) {
-      const batch = chunks.slice(i, i + batchSize);
-      const batchPromises = batch.map(async (chunk, idx) => {
-        const response = await fetch(
-          `https://api.minimaxi.chat/v1/t2a_v2?GroupId=${groupId}`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
+    for (let i = 0; i < chunks.length; i++) {
+      const response = await fetch(
+        `https://api.minimaxi.chat/v1/t2a_v2?GroupId=${groupId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'speech-2.6-hd',
+            text: chunks[i],
+            voice_setting: {
+              voice_id: voice,
+              speed: speed,
             },
-            body: JSON.stringify({
-              model: 'speech-2.6-hd',
-              text: chunk,
-              voice_setting: {
-                voice_id: voice,
-                speed: speed,
-              },
-              audio_setting: {
-                format: 'mp3',
-                audio_sample_rate: 32000,
-                bitrate: 128000,
-              },
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.base_resp?.status_msg || `MiniMax API error: ${response.status}`);
+            audio_setting: {
+              format: 'mp3',
+              audio_sample_rate: 32000,
+              bitrate: 128000,
+            },
+          }),
         }
+      );
 
-        const data = await response.json();
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.base_resp?.status_msg || `MiniMax API error: ${response.status}`);
+      }
 
-        if (data.base_resp && data.base_resp.status_code !== 0) {
-          throw new Error(data.base_resp.status_msg || 'MiniMax API returned an error');
-        }
+      const data = await response.json();
 
-        const audioHex = data.data?.audio;
-        if (!audioHex) {
-          throw new Error('No audio data in MiniMax response');
-        }
+      if (data.base_resp && data.base_resp.status_code !== 0) {
+        throw new Error(data.base_resp.status_msg || 'MiniMax API returned an error');
+      }
 
-        return { index: i + idx, buffer: Buffer.from(audioHex, 'hex') };
-      });
+      const audioHex = data.data?.audio;
+      if (!audioHex) {
+        throw new Error('No audio data in MiniMax response');
+      }
 
-      const results = await Promise.all(batchPromises);
-      results.forEach(({ index, buffer }) => {
-        audioBuffers[index] = buffer;
-      });
+      audioBuffers.push(Buffer.from(audioHex, 'hex'));
     }
 
     // Concatenate all audio buffers
