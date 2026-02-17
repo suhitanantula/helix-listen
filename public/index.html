@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1a2e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Helix Listen</title>
+  <title>Listen</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <!-- PDF.js for client-side PDF extraction -->
@@ -367,13 +367,14 @@
 <body>
   <div class="container">
     <h1>🎧 Helix Listen</h1>
-    <p class="tagline">Turn any article or PDF into audio</p>
+    <p class="tagline">Turn any article, PDF, or markdown into audio</p>
 
     <div class="input-section">
       <!-- Input Type Tabs -->
       <div class="tabs">
         <button class="tab active" data-tab="url">URL</button>
         <button class="tab" data-tab="pdf">PDF</button>
+        <button class="tab" data-tab="markdown">Markdown</button>
         <button class="tab" data-tab="text">Paste Text</button>
       </div>
 
@@ -400,6 +401,20 @@
         </div>
       </div>
 
+      <!-- Markdown Tab -->
+      <div class="tab-content" id="tab-markdown">
+        <div class="input-group">
+          <label>Upload a Markdown file</label>
+          <div class="file-input-wrapper">
+            <label class="file-input-label" id="md-file-label" for="md-input">
+              <span>📝</span>
+              <span id="md-file-name">Choose .md file</span>
+            </label>
+            <input type="file" id="md-input" accept=".md,.markdown">
+          </div>
+        </div>
+      </div>
+
       <!-- Text Tab -->
       <div class="tab-content" id="tab-text">
         <div class="input-group">
@@ -412,12 +427,12 @@
         <div class="option">
           <label for="voice-select">Voice</label>
           <select id="voice-select">
-            <option value="alloy">Alloy (Neutral)</option>
-            <option value="echo">Echo (Male)</option>
-            <option value="fable">Fable (British)</option>
-            <option value="onyx">Onyx (Deep)</option>
-            <option value="nova">Nova (Female)</option>
-            <option value="shimmer">Shimmer (Soft)</option>
+            <option value="English_expressive_narrator">Expressive Narrator</option>
+            <option value="English_CaptivatingStoryteller">Captivating Storyteller</option>
+            <option value="English_CalmWoman">Calm Woman</option>
+            <option value="English_magnetic_voiced_man">Magnetic Man</option>
+            <option value="English_radiant_girl">Radiant Girl</option>
+            <option value="English_ManWithDeepVoice">Deep Voice</option>
           </select>
         </div>
         <div class="option">
@@ -467,9 +482,12 @@
     // Elements
     const urlInput = document.getElementById('url-input');
     const pdfInput = document.getElementById('pdf-input');
+    const mdInput = document.getElementById('md-input');
     const textInput = document.getElementById('text-input');
     const fileLabel = document.getElementById('file-label');
     const fileName = document.getElementById('file-name');
+    const mdFileLabel = document.getElementById('md-file-label');
+    const mdFileName = document.getElementById('md-file-name');
     const voiceSelect = document.getElementById('voice-select');
     const speedSelect = document.getElementById('speed-select');
     const convertBtn = document.getElementById('convert-btn');
@@ -504,6 +522,37 @@
       }
     });
 
+    // Handle Markdown file selection
+    mdInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        const file = e.target.files[0];
+        mdFileName.textContent = file.name;
+        mdFileLabel.classList.add('has-file');
+      }
+    });
+
+    // Strip markdown syntax to plain text
+    function stripMarkdown(md) {
+      return md
+        .replace(/```[\s\S]*?```/g, '')          // code blocks
+        .replace(/`([^`]+)`/g, '$1')              // inline code
+        .replace(/!\[.*?\]\(.*?\)/g, '')          // images
+        .replace(/\[([^\]]+)\]\(.*?\)/g, '$1')    // links → text
+        .replace(/^#{1,6}\s+/gm, '')              // headers
+        .replace(/(\*\*|__)(.*?)\1/g, '$2')       // bold
+        .replace(/(\*|_)(.*?)\1/g, '$2')          // italic
+        .replace(/~~(.*?)~~/g, '$1')              // strikethrough
+        .replace(/^\s*[-*+]\s+/gm, '')            // unordered lists
+        .replace(/^\s*\d+\.\s+/gm, '')            // ordered lists
+        .replace(/^\s*>\s+/gm, '')                // blockquotes
+        .replace(/^---+$/gm, '')                  // horizontal rules
+        .replace(/<[^>]+>/g, '')                   // HTML tags
+        .replace(/\|.*\|/g, '')                    // table rows
+        .replace(/^\s*[-:]+\s*\|/gm, '')          // table separators
+        .replace(/\n{3,}/g, '\n\n')               // excess newlines
+        .trim();
+    }
+
     // Extract text from PDF using PDF.js (client-side)
     async function extractPdfText(file) {
       const arrayBuffer = await file.arrayBuffer();
@@ -524,6 +573,7 @@
     convertBtn.addEventListener('click', async () => {
       const url = urlInput.value.trim();
       const pdfFile = pdfInput.files[0];
+      const mdFile = mdInput.files[0];
       const pastedText = textInput.value.trim();
 
       // Check based on active tab
@@ -533,6 +583,10 @@
       }
       if (activeTab === 'pdf' && !pdfFile) {
         showStatus('Please upload a PDF', 'error');
+        return;
+      }
+      if (activeTab === 'markdown' && !mdFile) {
+        showStatus('Please upload a Markdown file', 'error');
         return;
       }
       if (activeTab === 'text' && !pastedText) {
@@ -553,6 +607,23 @@
           extracted = {
             title: 'Pasted Text',
             text: pastedText,
+            wordCount,
+            estimatedMinutes: Math.ceil(wordCount / 150),
+          };
+        } else if (activeTab === 'markdown') {
+          // Read and strip markdown client-side
+          showStatus('Processing Markdown file...', 'loading');
+          const rawMd = await mdFile.text();
+          const plainText = stripMarkdown(rawMd);
+
+          if (!plainText || plainText.length < 20) {
+            throw new Error('Could not extract readable text from the Markdown file.');
+          }
+
+          const wordCount = plainText.split(/\s+/).length;
+          extracted = {
+            title: mdFile.name.replace(/\.(md|markdown)$/i, ''),
+            text: plainText,
             wordCount,
             estimatedMinutes: Math.ceil(wordCount / 150),
           };

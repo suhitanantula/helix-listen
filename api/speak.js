@@ -1,4 +1,4 @@
-// API endpoint to convert text to speech using OpenAI
+// API endpoint to convert text to speech using MiniMax TTS
 
 export const config = {
   maxDuration: 300, // 5 minutes max for long documents
@@ -18,19 +18,20 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'OpenAI API key not configured' });
+  const apiKey = process.env.MINIMAX_API_KEY;
+  const groupId = process.env.MINIMAX_GROUP_ID;
+  if (!apiKey || !groupId) {
+    return res.status(500).json({ error: 'MiniMax API key or Group ID not configured' });
   }
 
   try {
-    const { text, voice = 'alloy', speed = 1.0 } = req.body;
+    const { text, voice = 'English_expressive_narrator', speed = 1.0 } = req.body;
 
     if (!text) {
       return res.status(400).json({ error: 'No text provided' });
     }
 
-    // Split into chunks (OpenAI TTS limit is 4096 chars)
+    // Split into chunks (MiniMax handles reasonable lengths, use ~4000 chars)
     const maxChunkSize = 4000;
     const chunks = [];
     for (let i = 0; i < text.length; i += maxChunkSize) {
@@ -44,26 +45,47 @@ export default async function handler(req, res) {
     for (let i = 0; i < chunks.length; i += batchSize) {
       const batch = chunks.slice(i, i + batchSize);
       const batchPromises = batch.map(async (chunk, idx) => {
-        const response = await fetch('https://api.openai.com/v1/audio/speech', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'tts-1',
-            input: chunk,
-            voice: voice,
-            speed: speed,
-          }),
-        });
+        const response = await fetch(
+          `https://api.minimaxi.chat/v1/t2a_v2?GroupId=${groupId}`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'speech-2.6-hd',
+              text: chunk,
+              voice_setting: {
+                voice_id: voice,
+                speed: speed,
+              },
+              audio_setting: {
+                format: 'mp3',
+                audio_sample_rate: 32000,
+                bitrate: 128000,
+              },
+            }),
+          }
+        );
 
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error?.message || `OpenAI API error: ${response.status}`);
+          throw new Error(errData.base_resp?.status_msg || `MiniMax API error: ${response.status}`);
         }
 
-        return { index: i + idx, buffer: Buffer.from(await response.arrayBuffer()) };
+        const data = await response.json();
+
+        if (data.base_resp && data.base_resp.status_code !== 0) {
+          throw new Error(data.base_resp.status_msg || 'MiniMax API returned an error');
+        }
+
+        const audioHex = data.data?.audio;
+        if (!audioHex) {
+          throw new Error('No audio data in MiniMax response');
+        }
+
+        return { index: i + idx, buffer: Buffer.from(audioHex, 'hex') };
       });
 
       const results = await Promise.all(batchPromises);

@@ -1,7 +1,7 @@
 {
   "name": "listen-app",
   "version": "1.0.0",
-  "description": "Simple app to convert articles and PDFs to speech",
+  "description": "Simple app to convert articles, PDFs, and markdown to speech using MiniMax TTS",
   "scripts": {
     "dev": "vercel dev",
     "build": "echo 'No build step needed'",
