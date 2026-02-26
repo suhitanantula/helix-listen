@@ -297,6 +297,112 @@
       background: rgba(255, 255, 255, 0.2);
     }
 
+    /* Library Section */
+    .library-section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .library-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .library-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .library-empty {
+      text-align: center;
+      color: #666;
+      padding: 20px;
+      font-size: 0.9rem;
+    }
+
+    .library-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .library-item:hover {
+      background: rgba(233, 69, 96, 0.1);
+    }
+
+    .library-item.playing {
+      background: rgba(233, 69, 96, 0.2);
+      border: 1px solid rgba(233, 69, 96, 0.3);
+    }
+
+    .library-item-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .library-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .library-item-title {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .library-item-meta {
+      font-size: 0.75rem;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .library-item-progress {
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+
+    .library-item-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #e94560, #ff6b6b);
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    .library-item-delete {
+      padding: 8px;
+      background: transparent;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 1rem;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .library-item-delete:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
     .install-prompt {
       position: fixed;
       bottom: 20px;
@@ -462,6 +568,16 @@
         <span>⬇️</span>
         <span>Download MP3</span>
       </button>
+    </div>
+
+    <!-- Library Section -->
+    <div class="library-section" id="library-section">
+      <div class="library-header">
+        <div class="library-title">Recent Audio</div>
+      </div>
+      <div id="library-list">
+        <div class="library-empty">No saved audio yet. Convert something to get started.</div>
+      </div>
     </div>
 
     <footer class="footer">
@@ -707,6 +823,16 @@
 
         showStatus('Ready to play!', 'success');
 
+        // Save to library
+        const savedItem = await saveToLibrary(
+          extracted.title,
+          currentAudioBlob,
+          extracted.wordCount,
+          extracted.estimatedMinutes * 60 // estimated duration in seconds
+        );
+        currentPlayingId = savedItem.id;
+        renderLibrary();
+
         // Auto-play
         audioPlayer.play().catch(() => {
           showStatus('Tap play to start', 'success');
@@ -809,6 +935,291 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js');
     }
+
+    // ==========================================
+    // IndexedDB Library System
+    // ==========================================
+
+    const DB_NAME = 'helix-listen-library';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'audio-items';
+    const MAX_ITEMS = 5;
+
+    let db = null;
+    let currentPlayingId = null;
+
+    // Initialize IndexedDB
+    async function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          db = request.result;
+          resolve(db);
+        };
+
+        request.onupgradeneeded = (event) => {
+          const database = event.target.result;
+          if (!database.objectStoreNames.contains(STORE_NAME)) {
+            const store = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+            store.createIndex('createdAt', 'createdAt', { unique: false });
+          }
+        };
+      });
+    }
+
+    // Save audio item to library
+    async function saveToLibrary(title, audioBlob, wordCount, duration) {
+      if (!db) await initDB();
+
+      const item = {
+        id: Date.now().toString(),
+        title,
+        audioBlob,
+        wordCount,
+        duration,
+        currentTime: 0,
+        createdAt: new Date().toISOString(),
+      };
+
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+
+        // Add new item
+        store.add(item);
+
+        tx.oncomplete = async () => {
+          // Enforce max items limit
+          await enforceMaxItems();
+          resolve(item);
+        };
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // Enforce maximum items in library
+    async function enforceMaxItems() {
+      const items = await getAllItems();
+      if (items.length > MAX_ITEMS) {
+        // Sort by createdAt and remove oldest
+        items.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        const toRemove = items.slice(0, items.length - MAX_ITEMS);
+        for (const item of toRemove) {
+          await deleteItem(item.id);
+        }
+      }
+    }
+
+    // Get all items from library
+    async function getAllItems() {
+      if (!db) await initDB();
+
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.getAll();
+
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    // Get single item
+    async function getItem(id) {
+      if (!db) await initDB();
+
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.get(id);
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    // Update item (e.g., save playback position)
+    async function updateItem(id, updates) {
+      if (!db) await initDB();
+
+      const item = await getItem(id);
+      if (!item) return null;
+
+      const updatedItem = { ...item, ...updates };
+
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put(updatedItem);
+
+        tx.oncomplete = () => resolve(updatedItem);
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // Delete item
+    async function deleteItem(id) {
+      if (!db) await initDB();
+
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.delete(id);
+
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // Format time for display
+    function formatTime(seconds) {
+      if (!seconds || isNaN(seconds)) return '0:00';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // Format date for display
+    function formatDate(isoString) {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 7) return `${diffDays}d ago`;
+      return date.toLocaleDateString();
+    }
+
+    // Render library list
+    async function renderLibrary() {
+      const listEl = document.getElementById('library-list');
+      const items = await getAllItems();
+
+      // Sort by most recent first
+      items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      if (items.length === 0) {
+        listEl.innerHTML = '<div class="library-empty">No saved audio yet. Convert something to get started.</div>';
+        return;
+      }
+
+      listEl.innerHTML = items.map(item => {
+        const progress = item.duration ? (item.currentTime / item.duration) * 100 : 0;
+        const isPlaying = item.id === currentPlayingId;
+        const timeInfo = item.currentTime > 0
+          ? `${formatTime(item.currentTime)} / ${formatTime(item.duration)}`
+          : formatTime(item.duration);
+
+        return `
+          <div class="library-item ${isPlaying ? 'playing' : ''}" data-id="${item.id}">
+            <div class="library-item-icon">${isPlaying ? '🔊' : '🎧'}</div>
+            <div class="library-item-info">
+              <div class="library-item-title">${item.title}</div>
+              <div class="library-item-meta">${timeInfo} • ${formatDate(item.createdAt)}</div>
+              <div class="library-item-progress">
+                <div class="library-item-progress-bar" style="width: ${progress}%"></div>
+              </div>
+            </div>
+            <button class="library-item-delete" data-id="${item.id}" title="Delete">🗑️</button>
+          </div>
+        `;
+      }).join('');
+
+      // Add click handlers
+      listEl.querySelectorAll('.library-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.classList.contains('library-item-delete')) return;
+          playFromLibrary(el.dataset.id);
+        });
+      });
+
+      listEl.querySelectorAll('.library-item-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.id;
+          if (id === currentPlayingId) {
+            audioPlayer.pause();
+            audioPlayer.src = '';
+            currentPlayingId = null;
+            playerSection.classList.remove('visible');
+          }
+          await deleteItem(id);
+          renderLibrary();
+        });
+      });
+    }
+
+    // Play item from library
+    async function playFromLibrary(id) {
+      const item = await getItem(id);
+      if (!item) return;
+
+      currentPlayingId = id;
+      currentAudioBlob = item.audioBlob;
+      currentTitle = item.title;
+
+      const audioUrl = URL.createObjectURL(item.audioBlob);
+      audioPlayer.src = audioUrl;
+      audioPlayer.currentTime = item.currentTime || 0;
+
+      articleTitle.textContent = item.title;
+      articleMeta.textContent = `${item.wordCount} words • ${formatTime(item.duration)}`;
+      playerSection.classList.add('visible');
+
+      audioPlayer.play().catch(() => {});
+      renderLibrary();
+    }
+
+    // Save playback position periodically
+    let savePositionTimeout = null;
+    audioPlayer.addEventListener('timeupdate', () => {
+      if (!currentPlayingId) return;
+
+      // Debounce saves to every 2 seconds
+      if (savePositionTimeout) return;
+      savePositionTimeout = setTimeout(async () => {
+        savePositionTimeout = null;
+        await updateItem(currentPlayingId, {
+          currentTime: audioPlayer.currentTime,
+          duration: audioPlayer.duration
+        });
+        renderLibrary();
+      }, 2000);
+    });
+
+    // Save position when paused
+    audioPlayer.addEventListener('pause', async () => {
+      if (!currentPlayingId) return;
+      await updateItem(currentPlayingId, {
+        currentTime: audioPlayer.currentTime,
+        duration: audioPlayer.duration
+      });
+      renderLibrary();
+    });
+
+    // Mark as complete when finished
+    audioPlayer.addEventListener('ended', async () => {
+      if (!currentPlayingId) return;
+      await updateItem(currentPlayingId, { currentTime: 0 });
+      renderLibrary();
+    });
+
+    // Update duration when audio metadata loads
+    audioPlayer.addEventListener('loadedmetadata', async () => {
+      if (!currentPlayingId) return;
+      await updateItem(currentPlayingId, { duration: audioPlayer.duration });
+      renderLibrary();
+    });
+
+    // Initialize library on page load
+    initDB().then(() => renderLibrary());
   </script>
 </body>
 </html>
