@@ -4,6 +4,37 @@ export const config = {
   maxDuration: 300, // 5 minutes max for long documents
 };
 
+// Helper: delay function
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper: fetch with retry and exponential backoff
+async function fetchWithRetry(url, options, maxRetries = 3) {
+  let lastError;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      // Check for rate limit (429) or server errors (5xx)
+      if (response.status === 429 || response.status >= 500) {
+        const waitTime = Math.pow(2, attempt) * 1000 + Math.random() * 1000; // Exponential backoff with jitter
+        console.log(`Rate limited or server error (${response.status}), waiting ${Math.round(waitTime)}ms before retry ${attempt + 1}/${maxRetries}`);
+        await delay(waitTime);
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      lastError = error;
+      const waitTime = Math.pow(2, attempt) * 1000;
+      console.log(`Network error, waiting ${waitTime}ms before retry ${attempt + 1}/${maxRetries}`);
+      await delay(waitTime);
+    }
+  }
+
+  throw lastError || new Error('Max retries exceeded');
+}
+
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -31,18 +62,24 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No text provided' });
     }
 
-    // Split into chunks (MiniMax handles reasonable lengths, use ~4000 chars)
-    const maxChunkSize = 4000;
+    // Split into chunks (MiniMax supports up to 10,000 chars, use 8,000 for safety)
+    const maxChunkSize = 8000;
     const chunks = [];
     for (let i = 0; i < text.length; i += maxChunkSize) {
       chunks.push(text.slice(i, i + maxChunkSize));
     }
 
-    // Process chunks sequentially to avoid rate limits
+    // Process chunks sequentially with delay between requests
     const audioBuffers = [];
+    const delayBetweenChunks = 500; // 500ms between chunks to avoid rate limits
 
     for (let i = 0; i < chunks.length; i++) {
-      const response = await fetch(
+      // Add delay between chunks (not before first)
+      if (i > 0) {
+        await delay(delayBetweenChunks);
+      }
+
+      const response = await fetchWithRetry(
         `https://api.minimaxi.chat/v1/t2a_v2?GroupId=${groupId}`,
         {
           method: 'POST',
@@ -63,7 +100,8 @@ export default async function handler(req, res) {
               bitrate: 128000,
             },
           }),
-        }
+        },
+        3 // max retries
       );
 
       if (!response.ok) {
