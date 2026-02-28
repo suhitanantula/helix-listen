@@ -24,7 +24,7 @@ Add "Insights → Audio" to Helix Listen on a separate `insights` branch with it
 - [x] **Story 4:** Create `/article-insights` Claude Code skill
   - Verify: Skill file exists at correct path, mode menu + ecosystem capture work in test session
 
-- [ ] **Story 5:** Create separate Vercel project for `insights` branch + add env vars
+- [x] **Story 5:** Create separate Vercel project for `insights` branch + add env vars
   - Verify: Live URL resolves, `/api/insights` returns valid response
 
 - [ ] **Story 6:** Smoke test full flow on live URL + push branch
