@@ -217,17 +217,19 @@ export default async function handler(req, res) {
     const modeName = MODE_NAMES[mode] || mode;
     const wordCount = insightText.split(/\s+/).length;
 
-    // Parse metadata (Haiku returns JSON)
+    // Parse metadata — strip markdown code fences if Haiku wraps the JSON
     let metadata = null;
     let ecosystemCapture = null;
     try {
-      metadata = JSON.parse(metadataMsg.content[0].text);
-      // Commit to helix-mind (non-blocking — failure won't break audio)
+      const raw = metadataMsg.content[0].text;
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      metadata = JSON.parse(cleaned);
+      // Commit to helix-mind (failure won't break audio)
       ecosystemCapture = await commitToHelixMind({
         title, source, mode, modeName, insightText, metadata, originalText: text,
       });
     } catch (e) {
-      console.warn('Ecosystem capture failed silently:', e.message);
+      console.warn('Ecosystem capture error:', e.message);
     }
 
     return res.status(200).json({
