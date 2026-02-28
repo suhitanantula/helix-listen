@@ -27,7 +27,7 @@ Add "Insights → Audio" to Helix Listen on a separate `insights` branch with it
 - [x] **Story 5:** Create separate Vercel project for `insights` branch + add env vars
   - Verify: Live URL resolves, `/api/insights` returns valid response
 
-- [ ] **Story 6:** Smoke test full flow on live URL + push branch
+- [x] **Story 6:** Smoke test full flow on live URL + push branch
   - Verify: Insights → Audio plays on production, original Convert to Audio still works
 
 ## Constraints
