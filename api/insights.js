@@ -1,10 +1,11 @@
 // api/insights.js
 // Transforms extracted text through an insight mode using Claude API
+// Auto-captures to Helix Mind intellectual ecosystem via GitHub API
 
 import Anthropic from '@anthropic-ai/sdk';
 
 export const config = {
-  maxDuration: 60,
+  maxDuration: 90,
 };
 
 const MODE_NAMES = {
@@ -36,6 +37,145 @@ const SYSTEM_PROMPTS = {
   'authors-voice': `You are a skilled editor. Condense this article to approximately 30% of its original length while preserving the author's exact voice, rhythm, and argumentative structure. Cut examples where one will do, trim repetition, remove throat-clearing. Do not add interpretation or commentary — this should read as if the author wrote a tighter version.`,
 };
 
+const ECOSYSTEM_METADATA_PROMPT = `You are analyzing an article for a personal strategic intelligence system. Return ONLY valid JSON, no markdown, no explanation.
+
+Analyze this article and return:
+{
+  "summary": "2-3 sentence executive summary of the core argument",
+  "llv": {
+    "dominant": "Lines|Loops|Vibes",
+    "signature": "e.g. ▲▲⟳",
+    "frequency": "20Hz|60Hz|90Hz|95Hz",
+    "why": "1 sentence justification"
+  },
+  "frameworks": [
+    {"name": "LLV", "relevance": "★★★|★★|★|—", "connection": "brief note"},
+    {"name": "Co-Intelligence", "relevance": "★★★|★★|★|—", "connection": "brief note"},
+    {"name": "Navigator/Capability Maturity", "relevance": "★★★|★★|★|—", "connection": "brief note"},
+    {"name": "AAA (Assist→Augment→Adapt)", "relevance": "★★★|★★|★|—", "connection": "brief note"},
+    {"name": "Strategic Intelligence as Code", "relevance": "★★★|★★|★|—", "connection": "brief note"}
+  ],
+  "keyInsights": [
+    {"title": "short title", "description": "one sentence"},
+    {"title": "short title", "description": "one sentence"},
+    {"title": "short title", "description": "one sentence"}
+  ],
+  "topQuote": "the single most quotable line from the article",
+  "marketRelevance": "1 sentence on which of your 5 markets this applies to most"
+}`;
+
+function toSlug(str) {
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+}
+
+function getAdelaideDate() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Adelaide' });
+}
+
+function buildEcosystemFile({ title, source, mode, modeName, insightText, metadata, originalText }) {
+  const date = getAdelaideDate();
+  const m = metadata;
+
+  const frameworkTable = m.frameworks.map(f =>
+    `| ${f.name} | ${f.relevance} | ${f.connection} |`
+  ).join('\n');
+
+  return `# ${title}
+
+**Source:** ${source || 'Helix Listen'}
+**Date Ingested:** ${date} (Adelaide time)
+**Insight Mode:** ${modeName}
+
+---
+
+## 💡 Insight: ${modeName}
+
+${insightText}
+
+---
+
+## Executive Summary
+
+${m.summary}
+
+---
+
+## LLV Analysis
+
+**Dominant Rhythm:** ${m.llv.dominant}
+**Signature:** ${m.llv.signature}
+**Frequency:** ${m.llv.frequency}
+**Why:** ${m.llv.why}
+
+---
+
+## Framework Connections
+
+| Framework | Relevance | Connection |
+|-----------|-----------|------------|
+${frameworkTable}
+
+---
+
+## Market Relevance
+
+${m.marketRelevance}
+
+---
+
+## Key Insights
+
+${m.keyInsights.map((k, i) => `${i + 1}. **${k.title}:** ${k.description}`).join('\n')}
+
+---
+
+## Quotable Passages
+
+> "${m.topQuote}"
+
+---
+
+## Full Content
+
+${originalText}
+`;
+}
+
+async function commitToHelixMind({ title, source, mode, modeName, insightText, metadata, originalText }) {
+  const ghToken = process.env.GITHUB_HELIX_MIND_TOKEN;
+  if (!ghToken) return { ok: false, reason: 'No GitHub token' };
+
+  const date = getAdelaideDate();
+  const slug = toSlug(title);
+  const filename = `${date}_${slug}.md`;
+  const path = `intellectual_ecosystem/research_library/ingested_articles/${filename}`;
+  const content = buildEcosystemFile({ title, source, mode, modeName, insightText, metadata, originalText });
+  const encoded = Buffer.from(content, 'utf8').toString('base64');
+
+  const url = `https://api.github.com/repos/suhitanantula/helix-mind/contents/${path}`;
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${ghToken}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'helix-listen-insights',
+    },
+    body: JSON.stringify({
+      message: `feat: capture [${modeName}] ${title} via Helix Listen`,
+      content: encoded,
+    }),
+  });
+
+  if (response.ok) {
+    const data = await response.json();
+    return { ok: true, url: data.content?.html_url, filename };
+  } else {
+    const err = await response.text();
+    console.error('GitHub commit failed:', response.status, err);
+    return { ok: false, reason: `GitHub ${response.status}` };
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -47,39 +187,57 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
-  const { text, title = 'Article', mode = 'takeaways' } = req.body;
+  const { text, title = 'Article', mode = 'takeaways', source } = req.body;
 
   if (!text) return res.status(400).json({ error: 'No text provided' });
 
   const systemPrompt = SYSTEM_PROMPTS[mode];
-  if (!systemPrompt) return res.status(400).json({ error: `Unknown mode: ${mode}. Valid modes: ${Object.keys(SYSTEM_PROMPTS).join(', ')}` });
+  if (!systemPrompt) return res.status(400).json({ error: `Unknown mode: ${mode}` });
 
   try {
     const client = new Anthropic({ apiKey });
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: `Title: ${title}\n\n${text}`,
-        },
-      ],
-    });
+    // Run insight generation and ecosystem metadata in parallel
+    const [insightMsg, metadataMsg] = await Promise.all([
+      client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Title: ${title}\n\n${text}` }],
+      }),
+      client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 800,
+        system: ECOSYSTEM_METADATA_PROMPT,
+        messages: [{ role: 'user', content: `Title: ${title}\n\n${text.slice(0, 3000)}` }],
+      }),
+    ]);
 
-    const transformedText = message.content[0].text;
-    const wordCount = transformedText.split(/\s+/).length;
+    const insightText = insightMsg.content[0].text;
     const modeName = MODE_NAMES[mode] || mode;
+    const wordCount = insightText.split(/\s+/).length;
+
+    // Parse metadata (Haiku returns JSON)
+    let metadata = null;
+    let ecosystemCapture = null;
+    try {
+      metadata = JSON.parse(metadataMsg.content[0].text);
+      // Commit to helix-mind (non-blocking — failure won't break audio)
+      ecosystemCapture = await commitToHelixMind({
+        title, source, mode, modeName, insightText, metadata, originalText: text,
+      });
+    } catch (e) {
+      console.warn('Ecosystem capture failed silently:', e.message);
+    }
 
     return res.status(200).json({
       title: `[${modeName}] ${title}`,
-      text: transformedText,
+      text: insightText,
       wordCount,
       estimatedMinutes: Math.ceil(wordCount / 150),
       mode,
       modeName,
+      ecosystemCapture: ecosystemCapture || null,
     });
   } catch (error) {
     console.error('Insights error:', error);

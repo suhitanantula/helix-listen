@@ -803,9 +803,11 @@
       try {
         let extracted;
 
+        let sourceRef = '';
         if (activeTab === 'text') {
           const wordCount = pastedText.split(/\s+/).length;
           extracted = { title: 'Pasted Text', text: pastedText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+          sourceRef = 'Pasted text';
         } else if (activeTab === 'markdown') {
           showStatus('Processing Markdown...', 'loading');
           const rawMd = await mdFile.text();
@@ -813,12 +815,14 @@
           if (!plainText || plainText.length < 20) throw new Error('Could not extract readable text from Markdown.');
           const wordCount = plainText.split(/\s+/).length;
           extracted = { title: mdFile.name.replace(/\.(md|markdown)$/i, ''), text: plainText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+          sourceRef = mdFile.name;
         } else if (activeTab === 'pdf') {
           showStatus('Extracting text from PDF...', 'loading');
           const pdfText = await extractPdfText(pdfFile);
           if (!pdfText || pdfText.length < 50) throw new Error('Could not extract text from PDF.');
           const wordCount = pdfText.split(/\s+/).length;
           extracted = { title: pdfFile.name.replace('.pdf', ''), text: pdfText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+          sourceRef = pdfFile.name;
         } else {
           showStatus('Extracting article...', 'loading');
           const extractRes = await fetch('/api/extract', {
@@ -831,6 +835,7 @@
             throw new Error('Server error. The site may be blocking access. Try pasting text directly.');
           }
           if (!extractRes.ok) throw new Error(extracted.error || 'Failed to extract article');
+          sourceRef = url;
         }
 
         // Generate insights via Claude
@@ -841,7 +846,7 @@
         const insightsRes = await fetch('/api/insights', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: extracted.text, title: extracted.title, mode }),
+          body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef }),
         });
 
         if (!insightsRes.ok) {
@@ -876,7 +881,8 @@
         const audioUrl = URL.createObjectURL(currentAudioBlob);
 
         articleTitle.textContent = insightsData.title;
-        articleMeta.textContent = `${insightsData.wordCount} words • ~${insightsData.estimatedMinutes} min`;
+        const captureNote = insightsData.ecosystemCapture?.ok ? ' • 🧠 saved to ecosystem' : '';
+        articleMeta.textContent = `${insightsData.wordCount} words • ~${insightsData.estimatedMinutes} min${captureNote}`;
         audioPlayer.src = audioUrl;
         playerSection.classList.add('visible');
 
