@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Simple app to convert articles, PDFs, and markdown to speech using MiniMax TTS",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "npx vercel@latest dev",
     "build": "echo 'No build step needed'",
-    "start": "vercel dev"
+    "start": "echo 'Use vercel dev to run locally'"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
