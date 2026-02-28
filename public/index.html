@@ -215,6 +215,47 @@
       transform: none;
     }
 
+    .insights-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      align-items: stretch;
+    }
+
+    .btn-insights {
+      flex: 1;
+      background: linear-gradient(90deg, #7c3aed, #a855f7);
+      color: white;
+    }
+
+    .btn-insights:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(124, 58, 237, 0.3);
+    }
+
+    .btn-insights:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .mode-select-wrapper select {
+      height: 100%;
+      padding: 0 10px;
+      border-radius: 10px;
+      font-size: 13px;
+      min-width: 145px;
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      border: 2px solid rgba(124, 58, 237, 0.4);
+      cursor: pointer;
+    }
+
+    .mode-select-wrapper select:focus {
+      outline: none;
+      border-color: #a855f7;
+    }
+
     .status {
       margin-top: 20px;
       padding: 15px;
@@ -451,6 +492,25 @@
         <span>Convert to Audio</span>
       </button>
 
+      <div class="insights-row">
+        <button class="btn btn-insights" id="insights-btn">
+          <span>💡</span>
+          <span>Insights → Audio</span>
+        </button>
+        <div class="mode-select-wrapper">
+          <select id="mode-select">
+            <option value="takeaways">Key Takeaways</option>
+            <option value="executive">Executive Brief</option>
+            <option value="socratic">Socratic Dialogue</option>
+            <option value="framework">Framework Extraction</option>
+            <option value="breakthrough">Breakthrough Lens</option>
+            <option value="analogy">Analogy Mode</option>
+            <option value="cross-domain">Cross-Domain Scout</option>
+            <option value="authors-voice">Author's Voice</option>
+          </select>
+        </div>
+      </div>
+
       <div class="status" id="status"></div>
     </div>
 
@@ -497,6 +557,8 @@
     const articleMeta = document.getElementById('article-meta');
     const audioPlayer = document.getElementById('audio-player');
     const downloadBtn = document.getElementById('download-btn');
+    const insightsBtn = document.getElementById('insights-btn');
+    const modeSelect = document.getElementById('mode-select');
 
     let currentAudioBlob = null;
     let currentTitle = '';
@@ -718,6 +780,116 @@
       } finally {
         convertBtn.disabled = false;
         convertBtn.innerHTML = '<span>🎙️</span><span>Convert to Audio</span>';
+      }
+    });
+
+    // Insights button handler
+    insightsBtn.addEventListener('click', async () => {
+      const url = urlInput.value.trim();
+      const pdfFile = pdfInput.files[0];
+      const mdFile = mdInput.files[0];
+      const pastedText = textInput.value.trim();
+
+      if (activeTab === 'url' && !url) { showStatus('Please enter a URL', 'error'); return; }
+      if (activeTab === 'pdf' && !pdfFile) { showStatus('Please upload a PDF', 'error'); return; }
+      if (activeTab === 'markdown' && !mdFile) { showStatus('Please upload a Markdown file', 'error'); return; }
+      if (activeTab === 'text' && !pastedText) { showStatus('Please paste some text', 'error'); return; }
+
+      insightsBtn.disabled = true;
+      convertBtn.disabled = true;
+      insightsBtn.innerHTML = '<div class="spinner"></div><span>Generating insights...</span>';
+      playerSection.classList.remove('visible');
+
+      try {
+        let extracted;
+
+        if (activeTab === 'text') {
+          const wordCount = pastedText.split(/\s+/).length;
+          extracted = { title: 'Pasted Text', text: pastedText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+        } else if (activeTab === 'markdown') {
+          showStatus('Processing Markdown...', 'loading');
+          const rawMd = await mdFile.text();
+          const plainText = stripMarkdown(rawMd);
+          if (!plainText || plainText.length < 20) throw new Error('Could not extract readable text from Markdown.');
+          const wordCount = plainText.split(/\s+/).length;
+          extracted = { title: mdFile.name.replace(/\.(md|markdown)$/i, ''), text: plainText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+        } else if (activeTab === 'pdf') {
+          showStatus('Extracting text from PDF...', 'loading');
+          const pdfText = await extractPdfText(pdfFile);
+          if (!pdfText || pdfText.length < 50) throw new Error('Could not extract text from PDF.');
+          const wordCount = pdfText.split(/\s+/).length;
+          extracted = { title: pdfFile.name.replace('.pdf', ''), text: pdfText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+        } else {
+          showStatus('Extracting article...', 'loading');
+          const extractRes = await fetch('/api/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+          });
+          const responseText = await extractRes.text();
+          try { extracted = JSON.parse(responseText); } catch (e) {
+            throw new Error('Server error. The site may be blocking access. Try pasting text directly.');
+          }
+          if (!extractRes.ok) throw new Error(extracted.error || 'Failed to extract article');
+        }
+
+        // Generate insights via Claude
+        const mode = modeSelect.value;
+        const modeName = modeSelect.options[modeSelect.selectedIndex].text;
+        showStatus(`Generating ${modeName}...`, 'loading');
+
+        const insightsRes = await fetch('/api/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: extracted.text, title: extracted.title, mode }),
+        });
+
+        if (!insightsRes.ok) {
+          const err = await insightsRes.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to generate insights');
+        }
+
+        const insightsData = await insightsRes.json();
+        currentTitle = insightsData.title;
+
+        // Convert to speech
+        showStatus(`Converting ${insightsData.wordCount} words to speech...`, 'loading');
+
+        const speakRes = await fetch('/api/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: insightsData.text,
+            voice: voiceSelect.value,
+            speed: parseFloat(speedSelect.value),
+          }),
+        });
+
+        if (!speakRes.ok) {
+          const errText = await speakRes.text();
+          let errMsg = 'Failed to generate speech';
+          try { errMsg = JSON.parse(errText).error || errMsg; } catch (e) {}
+          throw new Error(errMsg);
+        }
+
+        currentAudioBlob = await speakRes.blob();
+        const audioUrl = URL.createObjectURL(currentAudioBlob);
+
+        articleTitle.textContent = insightsData.title;
+        articleMeta.textContent = `${insightsData.wordCount} words • ~${insightsData.estimatedMinutes} min`;
+        audioPlayer.src = audioUrl;
+        playerSection.classList.add('visible');
+
+        showStatus('Insights ready to play!', 'success');
+        audioPlayer.play().catch(() => showStatus('Tap play to start', 'success'));
+
+      } catch (error) {
+        console.error(error);
+        showStatus(error.message, 'error');
+      } finally {
+        insightsBtn.disabled = false;
+        convertBtn.disabled = false;
+        insightsBtn.innerHTML = '<span>💡</span><span>Insights → Audio</span>';
       }
     });
 
