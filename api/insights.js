@@ -72,7 +72,13 @@ function getAdelaideDate() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Adelaide' });
 }
 
+const MAX_ORIGINAL_CHARS = 40000; // ~8000 words — keeps file under GitHub's safe limit
+
 function buildEcosystemFile({ title, source, mode, modeName, insightText, metadata, originalText }) {
+  const truncated = originalText.length > MAX_ORIGINAL_CHARS;
+  originalText = truncated
+    ? originalText.slice(0, MAX_ORIGINAL_CHARS) + `\n\n---\n*[Content truncated at ${MAX_ORIGINAL_CHARS} chars. Full source: ${source || 'Helix Listen'}]*`
+    : originalText;
   const date = getAdelaideDate();
   const m = metadata;
 
@@ -229,7 +235,8 @@ export default async function handler(req, res) {
         title, source, mode, modeName, insightText, metadata, originalText: text,
       });
     } catch (e) {
-      console.warn('Ecosystem capture error:', e.message);
+      console.error('Ecosystem capture error:', e.message);
+      ecosystemCapture = { ok: false, reason: e.message };
     }
 
     return res.status(200).json({
