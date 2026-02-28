@@ -267,6 +267,30 @@
       overflow-y: auto;
     }
 
+    .btn-copy {
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #aaa;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: auto;
+    }
+
+    .btn-copy:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+
+    .btn-copy.copied {
+      background: rgba(74, 222, 128, 0.15);
+      border-color: rgba(74, 222, 128, 0.4);
+      color: #4ade80;
+    }
+
     .insights-row {
       display: flex;
       gap: 10px;
@@ -577,6 +601,7 @@
         <span id="insight-text-label">Saved to Ecosystem</span>
       </div>
       <div class="insight-text-body" id="insight-text-body"></div>
+      <button class="btn btn-copy" id="copy-btn">📋 Copy</button>
     </div>
 
     <div class="player-section" id="player-section">
@@ -628,6 +653,7 @@
     const insightTextSection = document.getElementById('insight-text-section');
     const insightTextLabel = document.getElementById('insight-text-label');
     const insightTextBody = document.getElementById('insight-text-body');
+    const copyBtn = document.getElementById('copy-btn');
 
     let currentAudioBlob = null;
     let currentTitle = '';
@@ -872,7 +898,7 @@
         const insightsRes = await fetch('/api/insights', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef }),
+          body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef, capture: false }),
         });
 
         if (!insightsRes.ok) {
@@ -990,7 +1016,7 @@
         const insightsRes = await fetch('/api/insights', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef }),
+          body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef, capture: true }),
         });
 
         if (!insightsRes.ok) {
@@ -1019,6 +1045,23 @@
         convertBtn.disabled = false;
         ecosystemBtn.innerHTML = '<span>📚</span><span>Save to Ecosystem</span>';
       }
+    });
+
+    // Copy insight text handler
+    copyBtn.addEventListener('click', () => {
+      const text = insightTextBody.textContent;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = '✅ Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = '📋 Copy';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      }).catch(() => {
+        copyBtn.textContent = '❌ Failed';
+        setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
+      });
     });
 
     // Download handler

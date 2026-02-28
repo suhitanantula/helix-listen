@@ -65,7 +65,11 @@ Analyze this article and return:
 }`;
 
 function toSlug(str) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+}
+
+function getAdelaideTime() {
+  return new Date().toLocaleTimeString('en-AU', { timeZone: 'Australia/Adelaide', hour: '2-digit', minute: '2-digit', hour12: false }).replace(':', '');
 }
 
 function getAdelaideDate() {
@@ -153,7 +157,8 @@ async function commitToHelixMind({ title, source, mode, modeName, insightText, m
 
   const date = getAdelaideDate();
   const slug = toSlug(title);
-  const filename = `${date}_${slug}.md`;
+  const time = getAdelaideTime();
+  const filename = `${date}_${time}_${slug}.md`;
   const path = `intellectual_ecosystem/research_library/ingested_articles/${filename}`;
   const content = buildEcosystemFile({ title, source, mode, modeName, insightText, metadata, originalText });
   const encoded = Buffer.from(content, 'utf8').toString('base64');
@@ -193,7 +198,7 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
-  const { text, title = 'Article', mode = 'takeaways', source } = req.body;
+  const { text, title = 'Article', mode = 'takeaways', source, capture = false } = req.body;
 
   if (!text) return res.status(400).json({ error: 'No text provided' });
 
@@ -203,42 +208,51 @@ export default async function handler(req, res) {
   try {
     const client = new Anthropic({ apiKey });
 
-    // Run insight generation and ecosystem metadata in parallel
-    const [insightMsg, metadataMsg] = await Promise.all([
-      client.messages.create({
+    // For audio path (capture=false): only run insight generation — fast
+    // For ecosystem path (capture=true): run both in parallel then commit to GitHub
+    let insightText, modeName, ecosystemCapture = null;
+
+    if (capture) {
+      const [insightMsg, metadataMsg] = await Promise.all([
+        client.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1500,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: `Title: ${title}\n\n${text}` }],
+        }),
+        client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 800,
+          system: ECOSYSTEM_METADATA_PROMPT,
+          messages: [{ role: 'user', content: `Title: ${title}\n\n${text.slice(0, 3000)}` }],
+        }),
+      ]);
+      insightText = insightMsg.content[0].text;
+      modeName = MODE_NAMES[mode] || mode;
+      try {
+        const raw = metadataMsg.content[0].text;
+        const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+        const metadata = JSON.parse(cleaned);
+        ecosystemCapture = await commitToHelixMind({
+          title, source, mode, modeName, insightText, metadata, originalText: text,
+        });
+      } catch (e) {
+        console.error('Ecosystem capture error:', e.message);
+        ecosystemCapture = { ok: false, reason: e.message };
+      }
+    } else {
+      // Audio path — insight only, no metadata, no GitHub commit
+      const insightMsg = await client.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: 'user', content: `Title: ${title}\n\n${text}` }],
-      }),
-      client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 800,
-        system: ECOSYSTEM_METADATA_PROMPT,
-        messages: [{ role: 'user', content: `Title: ${title}\n\n${text.slice(0, 3000)}` }],
-      }),
-    ]);
-
-    const insightText = insightMsg.content[0].text;
-    const modeName = MODE_NAMES[mode] || mode;
-    const wordCount = insightText.split(/\s+/).length;
-
-    // Parse metadata — strip markdown code fences if Haiku wraps the JSON
-    let metadata = null;
-    let ecosystemCapture = null;
-    try {
-      const raw = metadataMsg.content[0].text;
-      const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-      metadata = JSON.parse(cleaned);
-      // Commit to helix-mind (failure won't break audio)
-      ecosystemCapture = await commitToHelixMind({
-        title, source, mode, modeName, insightText, metadata, originalText: text,
       });
-    } catch (e) {
-      console.error('Ecosystem capture error:', e.message);
-      ecosystemCapture = { ok: false, reason: e.message };
+      insightText = insightMsg.content[0].text;
+      modeName = MODE_NAMES[mode] || mode;
     }
 
+    const wordCount = insightText.split(/\s+/).filter(Boolean).length;
     return res.status(200).json({
       title: `[${modeName}] ${title}`,
       text: insightText,
