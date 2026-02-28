@@ -215,6 +215,58 @@
       transform: none;
     }
 
+    .btn-ecosystem {
+      width: 100%;
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      margin-top: 10px;
+      font-size: 0.95rem;
+    }
+
+    .btn-ecosystem:hover {
+      background: rgba(16, 185, 129, 0.25);
+      border-color: rgba(16, 185, 129, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .btn-ecosystem:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .insight-text-section {
+      display: none;
+      background: rgba(16, 185, 129, 0.05);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .insight-text-section.visible {
+      display: block;
+    }
+
+    .insight-text-header {
+      font-size: 0.85rem;
+      color: #10b981;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .insight-text-body {
+      font-size: 0.9rem;
+      color: #ccc;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
     .insights-row {
       display: flex;
       gap: 10px;
@@ -511,7 +563,20 @@
         </div>
       </div>
 
+      <button class="btn btn-ecosystem" id="ecosystem-btn">
+        <span>📚</span>
+        <span>Save to Ecosystem</span>
+      </button>
+
       <div class="status" id="status"></div>
+    </div>
+
+    <div class="insight-text-section" id="insight-text-section">
+      <div class="insight-text-header">
+        <span>🧠</span>
+        <span id="insight-text-label">Saved to Ecosystem</span>
+      </div>
+      <div class="insight-text-body" id="insight-text-body"></div>
     </div>
 
     <div class="player-section" id="player-section">
@@ -559,6 +624,10 @@
     const downloadBtn = document.getElementById('download-btn');
     const insightsBtn = document.getElementById('insights-btn');
     const modeSelect = document.getElementById('mode-select');
+    const ecosystemBtn = document.getElementById('ecosystem-btn');
+    const insightTextSection = document.getElementById('insight-text-section');
+    const insightTextLabel = document.getElementById('insight-text-label');
+    const insightTextBody = document.getElementById('insight-text-body');
 
     let currentAudioBlob = null;
     let currentTitle = '';
@@ -783,62 +852,19 @@
       }
     });
 
-    // Insights button handler
+    // Insights → Audio handler
     insightsBtn.addEventListener('click', async () => {
-      const url = urlInput.value.trim();
-      const pdfFile = pdfInput.files[0];
-      const mdFile = mdInput.files[0];
-      const pastedText = textInput.value.trim();
-
-      if (activeTab === 'url' && !url) { showStatus('Please enter a URL', 'error'); return; }
-      if (activeTab === 'pdf' && !pdfFile) { showStatus('Please upload a PDF', 'error'); return; }
-      if (activeTab === 'markdown' && !mdFile) { showStatus('Please upload a Markdown file', 'error'); return; }
-      if (activeTab === 'text' && !pastedText) { showStatus('Please paste some text', 'error'); return; }
-
       insightsBtn.disabled = true;
       convertBtn.disabled = true;
+      ecosystemBtn.disabled = true;
       insightsBtn.innerHTML = '<div class="spinner"></div><span>Generating insights...</span>';
       playerSection.classList.remove('visible');
 
       try {
-        let extracted;
+        const result = await extractContent();
+        if (!result) return;
+        const { extracted, sourceRef } = result;
 
-        let sourceRef = '';
-        if (activeTab === 'text') {
-          const wordCount = pastedText.split(/\s+/).length;
-          extracted = { title: 'Pasted Text', text: pastedText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
-          sourceRef = 'Pasted text';
-        } else if (activeTab === 'markdown') {
-          showStatus('Processing Markdown...', 'loading');
-          const rawMd = await mdFile.text();
-          const plainText = stripMarkdown(rawMd);
-          if (!plainText || plainText.length < 20) throw new Error('Could not extract readable text from Markdown.');
-          const wordCount = plainText.split(/\s+/).length;
-          extracted = { title: mdFile.name.replace(/\.(md|markdown)$/i, ''), text: plainText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
-          sourceRef = mdFile.name;
-        } else if (activeTab === 'pdf') {
-          showStatus('Extracting text from PDF...', 'loading');
-          const pdfText = await extractPdfText(pdfFile);
-          if (!pdfText || pdfText.length < 50) throw new Error('Could not extract text from PDF.');
-          const wordCount = pdfText.split(/\s+/).length;
-          extracted = { title: pdfFile.name.replace('.pdf', ''), text: pdfText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
-          sourceRef = pdfFile.name;
-        } else {
-          showStatus('Extracting article...', 'loading');
-          const extractRes = await fetch('/api/extract', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url }),
-          });
-          const responseText = await extractRes.text();
-          try { extracted = JSON.parse(responseText); } catch (e) {
-            throw new Error('Server error. The site may be blocking access. Try pasting text directly.');
-          }
-          if (!extractRes.ok) throw new Error(extracted.error || 'Failed to extract article');
-          sourceRef = url;
-        }
-
-        // Generate insights via Claude
         const mode = modeSelect.value;
         const modeName = modeSelect.options[modeSelect.selectedIndex].text;
         showStatus(`Generating ${modeName}...`, 'loading');
@@ -857,17 +883,12 @@
         const insightsData = await insightsRes.json();
         currentTitle = insightsData.title;
 
-        // Convert to speech
         showStatus(`Converting ${insightsData.wordCount} words to speech...`, 'loading');
 
         const speakRes = await fetch('/api/speak', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: insightsData.text,
-            voice: voiceSelect.value,
-            speed: parseFloat(speedSelect.value),
-          }),
+          body: JSON.stringify({ text: insightsData.text, voice: voiceSelect.value, speed: parseFloat(speedSelect.value) }),
         });
 
         if (!speakRes.ok) {
@@ -895,7 +916,108 @@
       } finally {
         insightsBtn.disabled = false;
         convertBtn.disabled = false;
+        ecosystemBtn.disabled = false;
         insightsBtn.innerHTML = '<span>💡</span><span>Insights → Audio</span>';
+      }
+    });
+
+    // Shared extraction helper
+    async function extractContent() {
+      const url = urlInput.value.trim();
+      const pdfFile = pdfInput.files[0];
+      const mdFile = mdInput.files[0];
+      const pastedText = textInput.value.trim();
+
+      if (activeTab === 'url' && !url) { showStatus('Please enter a URL', 'error'); return null; }
+      if (activeTab === 'pdf' && !pdfFile) { showStatus('Please upload a PDF', 'error'); return null; }
+      if (activeTab === 'markdown' && !mdFile) { showStatus('Please upload a Markdown file', 'error'); return null; }
+      if (activeTab === 'text' && !pastedText) { showStatus('Please paste some text', 'error'); return null; }
+
+      let extracted, sourceRef;
+      if (activeTab === 'text') {
+        const wordCount = pastedText.split(/\s+/).length;
+        extracted = { title: 'Pasted Text', text: pastedText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+        sourceRef = 'Pasted text';
+      } else if (activeTab === 'markdown') {
+        showStatus('Processing Markdown...', 'loading');
+        const rawMd = await mdFile.text();
+        const plainText = stripMarkdown(rawMd);
+        if (!plainText || plainText.length < 20) { showStatus('Could not extract readable text from Markdown.', 'error'); return null; }
+        const wordCount = plainText.split(/\s+/).length;
+        extracted = { title: mdFile.name.replace(/\.(md|markdown)$/i, ''), text: plainText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+        sourceRef = mdFile.name;
+      } else if (activeTab === 'pdf') {
+        showStatus('Extracting text from PDF...', 'loading');
+        const pdfText = await extractPdfText(pdfFile);
+        if (!pdfText || pdfText.length < 50) { showStatus('Could not extract text from PDF.', 'error'); return null; }
+        const wordCount = pdfText.split(/\s+/).length;
+        extracted = { title: pdfFile.name.replace('.pdf', ''), text: pdfText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+        sourceRef = pdfFile.name;
+      } else {
+        showStatus('Extracting article...', 'loading');
+        const extractRes = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const responseText = await extractRes.text();
+        try { extracted = JSON.parse(responseText); } catch (e) {
+          showStatus('Server error. The site may be blocking access. Try pasting text directly.', 'error'); return null;
+        }
+        if (!extractRes.ok) { showStatus(extracted.error || 'Failed to extract article', 'error'); return null; }
+        sourceRef = url;
+      }
+      return { extracted, sourceRef };
+    }
+
+    // Save to Ecosystem handler (no audio — text only)
+    ecosystemBtn.addEventListener('click', async () => {
+      ecosystemBtn.disabled = true;
+      insightsBtn.disabled = true;
+      convertBtn.disabled = true;
+      ecosystemBtn.innerHTML = '<div class="spinner"></div><span>Saving to Ecosystem...</span>';
+      insightTextSection.classList.remove('visible');
+
+      try {
+        const result = await extractContent();
+        if (!result) return;
+        const { extracted, sourceRef } = result;
+
+        const mode = modeSelect.value;
+        const modeName = modeSelect.options[modeSelect.selectedIndex].text;
+        showStatus(`Generating ${modeName}...`, 'loading');
+
+        const insightsRes = await fetch('/api/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef }),
+        });
+
+        if (!insightsRes.ok) {
+          const err = await insightsRes.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to generate insights');
+        }
+
+        const insightsData = await insightsRes.json();
+        const captured = insightsData.ecosystemCapture?.ok;
+
+        // Show text on screen
+        insightTextLabel.textContent = captured
+          ? `[${insightsData.modeName}] ${extracted.title} • 🧠 saved to ecosystem`
+          : `[${insightsData.modeName}] ${extracted.title}`;
+        insightTextBody.textContent = insightsData.text;
+        insightTextSection.classList.add('visible');
+
+        showStatus(captured ? 'Saved to ecosystem!' : 'Insight generated (ecosystem save failed)', captured ? 'success' : 'error');
+
+      } catch (error) {
+        console.error(error);
+        showStatus(error.message, 'error');
+      } finally {
+        ecosystemBtn.disabled = false;
+        insightsBtn.disabled = false;
+        convertBtn.disabled = false;
+        ecosystemBtn.innerHTML = '<span>📚</span><span>Save to Ecosystem</span>';
       }
     });
 
