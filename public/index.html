@@ -900,23 +900,26 @@
           body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef, capture: false }),
         });
 
-        // Check if response is HTML (error page) instead of JSON
-        const contentType = insightsRes.headers.get('content-type');
+        console.log('Insights response status:', insightsRes.status);
+        console.log('Insights response headers:', insightsRes.headers.get('content-type'));
+        
+        // Get response text first to debug
+        const responseText = await insightsRes.text();
+        console.log('Insights response (first 500 chars):', responseText.substring(0, 500));
+        
         if (!insightsRes.ok) {
-          const errorText = await insightsRes.text();
-          console.error('Insights API error:', errorText.substring(0, 500));
-          if (errorText.includes('<!DOCTYPE html') || errorText.includes('<html')) {
-            throw new Error('Server returned HTML instead of JSON. Check if /api/insights exists on this deployment.');
+          if (responseText.includes('<!DOCTYPE html') || responseText.includes('<html')) {
+            throw new Error('Server returned HTML instead of JSON. Make sure you deployed the insights branch.');
           }
           try {
-            const err = JSON.parse(errorText);
+            const err = JSON.parse(responseText);
             throw new Error(err.error || `API error: ${insightsRes.status}`);
           } catch (e) {
-            throw new Error(`Failed to generate insights: ${insightsRes.status}`);
+            throw new Error(`Failed to generate insights: ${insightsRes.status} - ${e.message}`);
           }
         }
 
-        const insightsData = await insightsRes.json();
+        const insightsData = await JSON.parse(responseText);
         currentTitle = insightsData.title;
 
         showStatus(`Converting ${insightsData.wordCount} words to speech...`, 'loading');
