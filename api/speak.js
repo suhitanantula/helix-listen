@@ -1,4 +1,4 @@
-// API endpoint to convert text to speech using MiniMax TTS
+// API endpoint to convert text to speech using Google Cloud Text-to-Speech
 
 export const config = {
   maxDuration: 300, // 5 minutes max for long documents
@@ -10,57 +10,54 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const apiKey = process.env.MINIMAX_API_KEY;
-  const groupId = process.env.MINIMAX_GROUP_ID;
-  if (!apiKey || !groupId) {
-    return res.status(500).json({ error: 'MiniMax API key or Group ID not configured' });
-  }
+  const apiKey = process.env.GOOGLE_CLOUD_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'Google Cloud API key not configured' });
 
   try {
-    const { text, voice = 'English_expressive_narrator', speed = 1.0 } = req.body;
+    const { text, voice = 'en-GB-Wavenet-A', speed = 1.0 } = req.body;
 
-    if (!text) {
-      return res.status(400).json({ error: 'No text provided' });
-    }
+    if (!text) return res.status(400).json({ error: 'No text provided' });
 
-    // Split into chunks (MiniMax handles reasonable lengths, use ~4000 chars)
-    const maxChunkSize = 4000;
+    // Validate voice and determine language/gender
+    let languageCode = 'en-US';
+    let ssmlGender = 'FEMALE';
+    
+    if (voice.includes('GB')) languageCode = 'en-GB';
+    else if (voice.includes('AU')) languageCode = 'en-AU';
+    
+    const lastChar = voice.slice(-1);
+    if (['B', 'D', 'G', 'I', 'J'].includes(lastChar)) ssmlGender = 'MALE';
+
+    // Split into chunks (Google Cloud TTS: 5,000 chars max per request)
+    const maxChunkSize = 5000;
     const chunks = [];
     for (let i = 0; i < text.length; i += maxChunkSize) {
       chunks.push(text.slice(i, i + maxChunkSize));
     }
 
-    // Process chunks sequentially to avoid rate limits
+    // Process chunks sequentially
     const audioBuffers = [];
 
     for (let i = 0; i < chunks.length; i++) {
       const response = await fetch(
-        `https://api.minimaxi.chat/v1/t2a_v2?GroupId=${groupId}`,
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
         {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'speech-2.6-hd',
-            text: chunks[i],
-            voice_setting: {
-              voice_id: voice,
-              speed: speed,
+            input: { text: chunks[i] },
+            voice: {
+              languageCode,
+              name: voice,
+              ssmlGender,
             },
-            audio_setting: {
-              format: 'mp3',
-              audio_sample_rate: 32000,
-              bitrate: 128000,
+            audioConfig: {
+              audioEncoding: 'MP3',
+              speakingRate: speed,
+              pitch: 0.0,
             },
           }),
         }
@@ -68,21 +65,16 @@ export default async function handler(req, res) {
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.base_resp?.status_msg || `MiniMax API error: ${response.status}`);
+        throw new Error(errData.error?.message || `Google Cloud TTS error: ${response.status}`);
       }
 
       const data = await response.json();
 
-      if (data.base_resp && data.base_resp.status_code !== 0) {
-        throw new Error(data.base_resp.status_msg || 'MiniMax API returned an error');
+      if (!data.audioContent) {
+        throw new Error('No audio data in Google Cloud TTS response');
       }
 
-      const audioHex = data.data?.audio;
-      if (!audioHex) {
-        throw new Error('No audio data in MiniMax response');
-      }
-
-      audioBuffers.push(Buffer.from(audioHex, 'hex'));
+      audioBuffers.push(Buffer.from(data.audioContent, 'base64'));
     }
 
     // Concatenate all audio buffers

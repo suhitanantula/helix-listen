@@ -1,7 +1,7 @@
 {
   "name": "listen-app",
   "version": "1.0.0",
-  "description": "Simple app to convert articles, PDFs, and markdown to speech using MiniMax TTS",
+  "description": "Simple app to convert articles, PDFs, and markdown to speech using Google Cloud TTS with Insights mode",
   "scripts": {
     "dev": "npx vercel@latest dev",
     "build": "echo 'No build step needed'",
