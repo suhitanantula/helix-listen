@@ -31,17 +31,58 @@ export default async function handler(req, res) {
     const lastChar = voice.slice(-1);
     if (['B', 'D', 'G', 'I', 'J'].includes(lastChar)) ssmlGender = 'MALE';
 
-    // Split into chunks (Google Cloud TTS: 5,000 chars max per request)
-    const maxChunkSize = 5000;
+    // Split into chunks by BYTES (Google Cloud TTS limit: 5000 bytes)
+    // Use 4000 bytes to be safe and account for multi-byte characters
+    const maxBytes = 4000;
     const chunks = [];
-    for (let i = 0; i < text.length; i += maxChunkSize) {
-      chunks.push(text.slice(i, i + maxChunkSize));
+    let encoder = new TextEncoder();
+    
+    // Simple approach: split by sentences at safe boundaries
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    let currentChunk = '';
+    let currentBytes = 0;
+    
+    for (const sentence of sentences) {
+      const sentenceBytes = encoder.encode(sentence).length;
+      
+      if (currentBytes + sentenceBytes > maxBytes && currentChunk.length > 0) {
+        // Current chunk is full, save it and start new one
+        chunks.push(currentChunk.trim());
+        currentChunk = sentence + ' ';
+        currentBytes = sentenceBytes;
+      } else {
+        // Add to current chunk
+        currentChunk += sentence + ' ';
+        currentBytes += sentenceBytes;
+      }
+    }
+    
+    // Don't forget the last chunk
+    if (currentChunk.trim().length > 0) {
+      chunks.push(currentChunk.trim());
+    }
+    
+    // If any single sentence is still too long, force-split it
+    for (let i = 0; i < chunks.length; i++) {
+      if (encoder.encode(chunks[i]).length > maxBytes) {
+        // Hard split long chunk into smaller pieces
+        const text = chunks[i];
+        const subChunks = [];
+        for (let j = 0; j < text.length; j += 3000) {
+          subChunks.push(text.slice(j, j + 3000));
+        }
+        chunks.splice(i, 1, ...subChunks);
+        i += subChunks.length - 1;
+      }
     }
 
     // Process chunks sequentially
     const audioBuffers = [];
 
     for (let i = 0; i < chunks.length; i++) {
+      // Add small delay between chunks (except before first)
+      if (i > 0) await new Promise(resolve => setTimeout(resolve, 500));
+      
       const response = await fetch(
         `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
         {
