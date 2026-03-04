@@ -2,7 +2,7 @@
 // Transforms extracted text through an insight mode using Claude API
 // Auto-captures to Helix Mind intellectual ecosystem via GitHub API
 
-const Anthropic = require('@anthropic-ai/sdk');
+import Anthropic from '@anthropic-ai/sdk';
 
 export const config = {
   maxDuration: 90,
