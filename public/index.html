@@ -723,7 +723,7 @@
 
       <button class="btn btn-ecosystem" id="ecosystem-btn">
         <span>📚</span>
-        <span>Save to Ecosystem</span>
+        <span>Save to Ecosystem (Direct)</span>
       </button>
 
       <div class="status" id="status"></div>
@@ -1217,33 +1217,51 @@
       }
     });
 
-    // Ecosystem save handler
+    // Ecosystem save handler (works with or without pre-generated insights)
     ecosystemBtn.addEventListener('click', async () => {
-      if (!currentInsightText) {
-        showStatus('Generate insights first', 'error');
+      const url = urlInput.value.trim();
+      const pdfFile = pdfInput.files[0];
+      const mdFile = mdInput.files[0];
+      const pastedText = textInput.value.trim();
+
+      // Check based on active tab
+      if (activeTab === 'url' && !url) {
+        showStatus('Please enter a URL', 'error');
+        return;
+      }
+      if (activeTab === 'pdf' && !pdfFile) {
+        showStatus('Please upload a PDF', 'error');
+        return;
+      }
+      if (activeTab === 'markdown' && !mdFile) {
+        showStatus('Please upload a Markdown file', 'error');
+        return;
+      }
+      if (activeTab === 'text' && !pastedText) {
+        showStatus('Please paste some text', 'error');
         return;
       }
 
       ecosystemBtn.disabled = true;
-      ecosystemBtn.innerHTML = '<div class="spinner"></div><span>Saving...</span>';
+      ecosystemBtn.innerHTML = '<div class="spinner"></div><span>Saving to ecosystem...</span>';
+      insightTextSection.classList.remove('visible');
 
       try {
-        const url = urlInput.value.trim();
-        const pdfFile = pdfInput.files[0];
-        const mdFile = mdInput.files[0];
-        const pastedText = textInput.value.trim();
         let extracted;
 
-        // Get the extracted text
+        // Extract text first
         if (activeTab === 'text') {
           extracted = { title: 'Pasted Text', text: pastedText };
         } else if (activeTab === 'markdown') {
+          showStatus('Processing Markdown...', 'loading');
           const rawMd = await mdFile.text();
           extracted = { title: mdFile.name.replace(/\\.(md|markdown)$/i, ''), text: stripMarkdown(rawMd) };
         } else if (activeTab === 'pdf') {
+          showStatus('Extracting PDF text...', 'loading');
           const pdfText = await extractPdfText(pdfFile);
           extracted = { title: pdfFile.name.replace('.pdf', ''), text: pdfText };
         } else {
+          showStatus('Extracting article...', 'loading');
           const extractRes = await fetch('/api/extract', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1252,8 +1270,10 @@
           extracted = await extractRes.json();
         }
 
-        // Save to ecosystem
+        // Save to ecosystem (generates insights + metadata + commits)
         const mode = modeSelect.value;
+        showStatus('Generating insights and saving...', 'loading');
+
         const saveRes = await fetch('/api/insights', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1262,7 +1282,7 @@
             title: extracted.title,
             mode: mode,
             source: url || extracted.title,
-            capture: true,
+            capture: true, // This tells backend to generate + save in one go
           }),
         });
 
@@ -1272,11 +1292,23 @@
         }
 
         const saveData = await saveRes.json();
+        
+        // Update UI with saved insights
+        currentInsightText = saveData.text;
+        insightTextLabel.textContent = saveData.title;
+        insightTextBody.textContent = saveData.text;
+        insightTextSection.classList.add('visible');
+
         if (saveData.ecosystemCapture?.ok) {
-          showStatus('✅ Saved to Helix Mind ecosystem!', 'success');
-          insightTextLabel.textContent = 'Saved to Ecosystem';
+          showStatus(`✅ Saved to Helix Mind! ${saveData.ecosystemCapture.url ? '- View on GitHub' : ''}`, 'success');
+          // Open GitHub URL in new tab if available
+          if (saveData.ecosystemCapture.url) {
+            setTimeout(() => {
+              window.open(saveData.ecosystemCapture.url, '_blank');
+            }, 1500);
+          }
         } else {
-          showStatus('Insights generated but ecosystem save failed: ' + saveData.ecosystemCapture?.reason, 'error');
+          showStatus('⚠️ Insights generated but GitHub save failed: ' + saveData.ecosystemCapture?.reason, 'error');
         }
 
       } catch (error) {
