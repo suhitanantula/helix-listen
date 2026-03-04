@@ -215,75 +215,31 @@
       transform: none;
     }
 
-    .insights-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 15px;
-    }
-
-    .btn-insights {
-      flex: 1;
-      padding: 14px;
-      background: rgba(168, 85, 247, 0.2);
-      border: 2px solid rgba(168, 85, 247, 0.4);
-      color: #e9d5ff;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    .btn-insights:hover {
-      background: rgba(168, 85, 247, 0.3);
-      border-color: rgba(168, 85, 247, 0.6);
-    }
-
-    .mode-select-wrapper {
-      flex: 1;
-    }
-
-    #mode-select {
-      width: 100%;
-      height: 100%;
-      padding: 12px;
-      border: 2px solid rgba(168, 85, 247, 0.4);
-      border-radius: 10px;
-      background: rgba(0, 0, 0, 0.3);
-      color: #e9d5ff;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
     .btn-ecosystem {
       width: 100%;
-      margin-top: 15px;
-      padding: 14px;
-      background: rgba(59, 130, 246, 0.2);
-      border: 2px solid rgba(59, 130, 246, 0.4);
-      color: #dbeafe;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      margin-top: 10px;
+      font-size: 0.95rem;
     }
 
     .btn-ecosystem:hover {
-      background: rgba(59, 130, 246, 0.3);
-      border-color: rgba(59, 130, 246, 0.6);
+      background: rgba(16, 185, 129, 0.25);
+      border-color: rgba(16, 185, 129, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .btn-ecosystem:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
     }
 
     .insight-text-section {
       display: none;
-      background: rgba(168, 85, 247, 0.1);
-      border: 1px solid rgba(168, 85, 247, 0.3);
+      background: rgba(16, 185, 129, 0.05);
+      border: 1px solid rgba(16, 185, 129, 0.2);
       border-radius: 16px;
       padding: 20px;
       margin-top: 20px;
@@ -294,43 +250,86 @@
     }
 
     .insight-text-header {
+      font-size: 0.85rem;
+      color: #10b981;
+      margin-bottom: 12px;
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 1rem;
-      font-weight: 600;
-      color: #e9d5ff;
-      margin-bottom: 15px;
+      gap: 8px;
     }
 
     .insight-text-body {
-      background: rgba(0, 0, 0, 0.2);
-      padding: 15px;
-      border-radius: 10px;
-      color: #e8e8e8;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      max-height: 300px;
-      overflow-y: auto;
+      font-size: 0.9rem;
+      color: #ccc;
+      line-height: 1.7;
       white-space: pre-wrap;
-      margin-bottom: 15px;
+      max-height: 400px;
+      overflow-y: auto;
     }
 
     .btn-copy {
-      width: 100%;
-      padding: 12px;
-      background: rgba(168, 85, 247, 0.2);
-      border: 1px solid rgba(168, 85, 247, 0.4);
-      color: #e9d5ff;
-      font-size: 0.95rem;
-      font-weight: 600;
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #aaa;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
-      border-radius: 8px;
+      width: auto;
     }
 
     .btn-copy:hover {
-      background: rgba(168, 85, 247, 0.3);
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+
+    .btn-copy.copied {
+      background: rgba(74, 222, 128, 0.15);
+      border-color: rgba(74, 222, 128, 0.4);
+      color: #4ade80;
+    }
+
+    .insights-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      align-items: stretch;
+    }
+
+    .btn-insights {
+      flex: 1;
+      background: linear-gradient(90deg, #7c3aed, #a855f7);
+      color: white;
+    }
+
+    .btn-insights:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(124, 58, 237, 0.3);
+    }
+
+    .btn-insights:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .mode-select-wrapper select {
+      height: 100%;
+      padding: 0 10px;
+      border-radius: 10px;
+      font-size: 13px;
+      min-width: 145px;
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      border: 2px solid rgba(124, 58, 237, 0.4);
+      cursor: pointer;
+    }
+
+    .mode-select-wrapper select:focus {
+      outline: none;
+      border-color: #a855f7;
     }
 
     .status {
@@ -413,112 +412,6 @@
 
     .download-btn:hover {
       background: rgba(255, 255, 255, 0.2);
-    }
-
-    /* Library Section */
-    .library-section {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
-      padding: 20px;
-      margin-top: 20px;
-    }
-
-    .library-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-    }
-
-    .library-title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #fff;
-    }
-
-    .library-empty {
-      text-align: center;
-      color: #666;
-      padding: 20px;
-      font-size: 0.9rem;
-    }
-
-    .library-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 10px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .library-item:hover {
-      background: rgba(233, 69, 96, 0.1);
-    }
-
-    .library-item.playing {
-      background: rgba(233, 69, 96, 0.2);
-      border: 1px solid rgba(233, 69, 96, 0.3);
-    }
-
-    .library-item-icon {
-      font-size: 1.5rem;
-      flex-shrink: 0;
-    }
-
-    .library-item-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .library-item-title {
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: #fff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .library-item-meta {
-      font-size: 0.75rem;
-      color: #888;
-      margin-top: 2px;
-    }
-
-    .library-item-progress {
-      width: 100%;
-      height: 3px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 2px;
-      margin-top: 6px;
-      overflow: hidden;
-    }
-
-    .library-item-progress-bar {
-      height: 100%;
-      background: linear-gradient(90deg, #e94560, #ff6b6b);
-      border-radius: 2px;
-      transition: width 0.3s;
-    }
-
-    .library-item-delete {
-      padding: 8px;
-      background: transparent;
-      border: none;
-      color: #666;
-      cursor: pointer;
-      font-size: 1rem;
-      border-radius: 6px;
-      transition: all 0.2s;
-    }
-
-    .library-item-delete:hover {
-      background: rgba(239, 68, 68, 0.2);
-      color: #f87171;
     }
 
     .install-prompt {
@@ -651,39 +544,11 @@
         <div class="option">
           <label for="voice-select">Voice</label>
           <select id="voice-select">
-            <optgroup label="🇬🇧 UK Voices (WaveNet)">
-              <option value="en-GB-Wavenet-A">British Female (A)</option>
-              <option value="en-GB-Wavenet-B">British Male (B)</option>
-              <option value="en-GB-Wavenet-C">British Female (C)</option>
-              <option value="en-GB-Wavenet-D">British Male (D)</option>
-              <option value="en-GB-Wavenet-F">British Female (F)</option>
-            </optgroup>
-            <optgroup label="🇦🇺 Australian Voices (WaveNet)">
-              <option value="en-AU-Wavenet-A">Australian Female (A)</option>
-              <option value="en-AU-Wavenet-B">Australian Male (B)</option>
-              <option value="en-AU-Wavenet-C">Australian Female (C)</option>
-              <option value="en-AU-Wavenet-D">Australian Male (D)</option>
-            </optgroup>
-            <optgroup label="🇺🇸 US Voices (WaveNet)">
-              <option value="en-US-Wavenet-A">American Female (A)</option>
-              <option value="en-US-Wavenet-B">American Male (B)</option>
-              <option value="en-US-Wavenet-C">American Female (C)</option>
-              <option value="en-US-Wavenet-D">American Male (D)</option>
-              <option value="en-US-Wavenet-E">American Female (E)</option>
-              <option value="en-US-Wavenet-F">American Female (F)</option>
-            </optgroup>
-            <optgroup label="🇬🇧 UK Voices (Standard)">
-              <option value="en-GB-Standard-A">British Female (A)</option>
-              <option value="en-GB-Standard-B">British Male (B)</option>
-              <option value="en-GB-Standard-C">British Female (C)</option>
-              <option value="en-GB-Standard-D">British Male (D)</option>
-            </optgroup>
-            <optgroup label="🇦🇺 Australian Voices (Standard)">
-              <option value="en-AU-Standard-A">Australian Female (A)</option>
-              <option value="en-AU-Standard-B">Australian Male (B)</option>
-              <option value="en-AU-Standard-C">Australian Female (C)</option>
-              <option value="en-AU-Standard-D">Australian Male (D)</option>
-            </optgroup>
+            <option value="en-GB-Wavenet-A" selected>🇬🇧 British Female</option>
+            <option value="en-GB-Wavenet-B">🇬🇧 British Male</option>
+            <option value="en-GB-Wavenet-D">🇬🇧 British Male (Deep)</option>
+            <option value="en-AU-Wavenet-A">🇦🇺 Australian Female</option>
+            <option value="en-AU-Wavenet-B">🇦🇺 Australian Male</option>
           </select>
         </div>
         <div class="option">
@@ -723,7 +588,7 @@
 
       <button class="btn btn-ecosystem" id="ecosystem-btn">
         <span>📚</span>
-        <span>Save to Ecosystem (Direct)</span>
+        <span>Save to Ecosystem (Auto-Generates)</span>
       </button>
 
       <div class="status" id="status"></div>
@@ -746,16 +611,6 @@
         <span>⬇️</span>
         <span>Download MP3</span>
       </button>
-    </div>
-
-    <!-- Library Section -->
-    <div class="library-section" id="library-section">
-      <div class="library-header">
-        <div class="library-title">Recent Audio</div>
-      </div>
-      <div id="library-list">
-        <div class="library-empty">No saved audio yet. Convert something to get started.</div>
-      </div>
     </div>
 
     <footer class="footer">
@@ -791,8 +646,6 @@
     const articleMeta = document.getElementById('article-meta');
     const audioPlayer = document.getElementById('audio-player');
     const downloadBtn = document.getElementById('download-btn');
-    
-    // Insights mode elements
     const insightsBtn = document.getElementById('insights-btn');
     const modeSelect = document.getElementById('mode-select');
     const ecosystemBtn = document.getElementById('ecosystem-btn');
@@ -804,10 +657,6 @@
     let currentAudioBlob = null;
     let currentTitle = '';
     let activeTab = 'url';
-    let currentInsightText = null;
-
-    // Set default voice to British Female (WaveNet)
-    voiceSelect.value = 'en-GB-Wavenet-A';
 
     // Tab switching
     document.querySelectorAll('.tab').forEach(tab => {
@@ -1014,16 +863,6 @@
 
         showStatus('Ready to play!', 'success');
 
-        // Save to library
-        const savedItem = await saveToLibrary(
-          extracted.title,
-          currentAudioBlob,
-          extracted.wordCount,
-          extracted.estimatedMinutes * 60 // estimated duration in seconds
-        );
-        currentPlayingId = savedItem.id;
-        renderLibrary();
-
         // Auto-play
         audioPlayer.play().catch(() => {
           showStatus('Tap play to start', 'success');
@@ -1038,6 +877,192 @@
       }
     });
 
+    // Insights → Audio handler
+    insightsBtn.addEventListener('click', async () => {
+      insightsBtn.disabled = true;
+      convertBtn.disabled = true;
+      ecosystemBtn.disabled = true;
+      insightsBtn.innerHTML = '<div class="spinner"></div><span>Generating insights...</span>';
+      playerSection.classList.remove('visible');
+
+      try {
+        const result = await extractContent();
+        if (!result) return;
+        const { extracted, sourceRef } = result;
+
+        const mode = modeSelect.value;
+        const modeName = modeSelect.options[modeSelect.selectedIndex].text;
+        showStatus(`Generating ${modeName}...`, 'loading');
+
+        const insightsRes = await fetch('/api/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef, capture: false }),
+        });
+
+        if (!insightsRes.ok) {
+          const err = await insightsRes.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to generate insights');
+        }
+
+        const insightsData = await insightsRes.json();
+        currentTitle = insightsData.title;
+
+        showStatus(`Converting ${insightsData.wordCount} words to speech...`, 'loading');
+
+        const speakRes = await fetch('/api/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: insightsData.text, voice: voiceSelect.value, speed: parseFloat(speedSelect.value) }),
+        });
+
+        if (!speakRes.ok) {
+          const errText = await speakRes.text();
+          let errMsg = 'Failed to generate speech';
+          try { errMsg = JSON.parse(errText).error || errMsg; } catch (e) {}
+          throw new Error(errMsg);
+        }
+
+        currentAudioBlob = await speakRes.blob();
+        const audioUrl = URL.createObjectURL(currentAudioBlob);
+
+        articleTitle.textContent = insightsData.title;
+        const captureNote = insightsData.ecosystemCapture?.ok ? ' • 🧠 saved to ecosystem' : '';
+        articleMeta.textContent = `${insightsData.wordCount} words • ~${insightsData.estimatedMinutes} min${captureNote}`;
+        audioPlayer.src = audioUrl;
+        playerSection.classList.add('visible');
+
+        showStatus('Insights ready to play!', 'success');
+        audioPlayer.play().catch(() => showStatus('Tap play to start', 'success'));
+
+      } catch (error) {
+        console.error(error);
+        showStatus(error.message, 'error');
+      } finally {
+        insightsBtn.disabled = false;
+        convertBtn.disabled = false;
+        ecosystemBtn.disabled = false;
+        insightsBtn.innerHTML = '<span>💡</span><span>Insights → Audio</span>';
+      }
+    });
+
+    // Shared extraction helper
+    async function extractContent() {
+      const url = urlInput.value.trim();
+      const pdfFile = pdfInput.files[0];
+      const mdFile = mdInput.files[0];
+      const pastedText = textInput.value.trim();
+
+      if (activeTab === 'url' && !url) { showStatus('Please enter a URL', 'error'); return null; }
+      if (activeTab === 'pdf' && !pdfFile) { showStatus('Please upload a PDF', 'error'); return null; }
+      if (activeTab === 'markdown' && !mdFile) { showStatus('Please upload a Markdown file', 'error'); return null; }
+      if (activeTab === 'text' && !pastedText) { showStatus('Please paste some text', 'error'); return null; }
+
+      let extracted, sourceRef;
+      if (activeTab === 'text') {
+        const wordCount = pastedText.split(/\s+/).length;
+        extracted = { title: 'Pasted Text', text: pastedText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+        sourceRef = 'Pasted text';
+      } else if (activeTab === 'markdown') {
+        showStatus('Processing Markdown...', 'loading');
+        const rawMd = await mdFile.text();
+        const plainText = stripMarkdown(rawMd);
+        if (!plainText || plainText.length < 20) { showStatus('Could not extract readable text from Markdown.', 'error'); return null; }
+        const wordCount = plainText.split(/\s+/).length;
+        extracted = { title: mdFile.name.replace(/\.(md|markdown)$/i, ''), text: plainText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+        sourceRef = mdFile.name;
+      } else if (activeTab === 'pdf') {
+        showStatus('Extracting text from PDF...', 'loading');
+        const pdfText = await extractPdfText(pdfFile);
+        if (!pdfText || pdfText.length < 50) { showStatus('Could not extract text from PDF.', 'error'); return null; }
+        const wordCount = pdfText.split(/\s+/).length;
+        extracted = { title: pdfFile.name.replace('.pdf', ''), text: pdfText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
+        sourceRef = pdfFile.name;
+      } else {
+        showStatus('Extracting article...', 'loading');
+        const extractRes = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const responseText = await extractRes.text();
+        try { extracted = JSON.parse(responseText); } catch (e) {
+          showStatus('Server error. The site may be blocking access. Try pasting text directly.', 'error'); return null;
+        }
+        if (!extractRes.ok) { showStatus(extracted.error || 'Failed to extract article', 'error'); return null; }
+        sourceRef = url;
+      }
+      return { extracted, sourceRef };
+    }
+
+    // Save to Ecosystem handler (no audio — text only)
+    ecosystemBtn.addEventListener('click', async () => {
+      ecosystemBtn.disabled = true;
+      insightsBtn.disabled = true;
+      convertBtn.disabled = true;
+      ecosystemBtn.innerHTML = '<div class="spinner"></div><span>Saving to Ecosystem...</span>';
+      insightTextSection.classList.remove('visible');
+
+      try {
+        const result = await extractContent();
+        if (!result) return;
+        const { extracted, sourceRef } = result;
+
+        const mode = modeSelect.value;
+        const modeName = modeSelect.options[modeSelect.selectedIndex].text;
+        showStatus(`Generating ${modeName}...`, 'loading');
+
+        const insightsRes = await fetch('/api/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef, capture: true }),
+        });
+
+        if (!insightsRes.ok) {
+          const err = await insightsRes.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to generate insights');
+        }
+
+        const insightsData = await insightsRes.json();
+        const captured = insightsData.ecosystemCapture?.ok;
+
+        // Show text on screen
+        insightTextLabel.textContent = captured
+          ? `[${insightsData.modeName}] ${extracted.title} • 🧠 saved to ecosystem`
+          : `[${insightsData.modeName}] ${extracted.title}`;
+        insightTextBody.textContent = insightsData.text;
+        insightTextSection.classList.add('visible');
+
+        showStatus(captured ? 'Saved to ecosystem!' : 'Insight generated (ecosystem save failed)', captured ? 'success' : 'error');
+
+      } catch (error) {
+        console.error(error);
+        showStatus(error.message, 'error');
+      } finally {
+        ecosystemBtn.disabled = false;
+        insightsBtn.disabled = false;
+        convertBtn.disabled = false;
+        ecosystemBtn.innerHTML = '<span>📚</span><span>Save to Ecosystem (Auto-Generates)</span>';
+      }
+    });
+
+    // Copy insight text handler
+    copyBtn.addEventListener('click', () => {
+      const text = insightTextBody.textContent;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = '✅ Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = '📋 Copy';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      }).catch(() => {
+        copyBtn.textContent = '❌ Failed';
+        setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
+      });
+    });
+
     // Download handler
     downloadBtn.addEventListener('click', () => {
       if (!currentAudioBlob) return;
@@ -1050,274 +1075,6 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    });
-
-    // Insights button handler
-    insightsBtn.addEventListener('click', async () => {
-      const url = urlInput.value.trim();
-      const pdfFile = pdfInput.files[0];
-      const mdFile = mdInput.files[0];
-      const pastedText = textInput.value.trim();
-
-      // Check based on active tab
-      if (activeTab === 'url' && !url) {
-        showStatus('Please enter a URL', 'error');
-        return;
-      }
-      if (activeTab === 'pdf' && !pdfFile) {
-        showStatus('Please upload a PDF', 'error');
-        return;
-      }
-      if (activeTab === 'markdown' && !mdFile) {
-        showStatus('Please upload a Markdown file', 'error');
-        return;
-      }
-      if (activeTab === 'text' && !pastedText) {
-        showStatus('Please paste some text', 'error');
-        return;
-      }
-
-      insightsBtn.disabled = true;
-      insightsBtn.innerHTML = '<div class="spinner"></div><span>Generating insights...</span>';
-      insightTextSection.classList.remove('visible');
-      playerSection.classList.remove('visible');
-
-      try {
-        let extracted;
-
-        // First extract the text (same as convert button)
-        if (activeTab === 'text') {
-          extracted = {
-            title: 'Pasted Text',
-            text: pastedText,
-          };
-        } else if (activeTab === 'markdown') {
-          showStatus('Processing Markdown file...', 'loading');
-          const rawMd = await mdFile.text();
-          const plainText = stripMarkdown(rawMd);
-          extracted = {
-            title: mdFile.name.replace(/\\.(md|markdown)$/i, ''),
-            text: plainText,
-          };
-        } else if (activeTab === 'pdf') {
-          showStatus('Extracting text from PDF...', 'loading');
-          const pdfText = await extractPdfText(pdfFile);
-          extracted = {
-            title: pdfFile.name.replace('.pdf', ''),
-            text: pdfText,
-          };
-        } else {
-          showStatus('Extracting article...', 'loading');
-          const extractRes = await fetch('/api/extract', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url }),
-          });
-          extracted = await extractRes.json();
-        }
-
-        // Generate insights
-        const mode = modeSelect.value;
-        showStatus('Generating insights...', 'loading');
-
-        const insightsRes = await fetch('/api/insights', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: extracted.text,
-            title: extracted.title,
-            mode: mode,
-          }),
-        });
-
-        if (!insightsRes.ok) {
-          const err = await insightsRes.json();
-          throw new Error(err.error || 'Failed to generate insights');
-        }
-
-        const insightsData = await insightsRes.json();
-        currentInsightText = insightsData.text;
-
-        // Show insight text
-        insightTextLabel.textContent = insightsData.title;
-        insightTextBody.textContent = insightsData.text;
-        insightTextSection.classList.add('visible');
-
-        showStatus('Insights ready! Convert to audio or save to ecosystem', 'success');
-
-      } catch (error) {
-        console.error('Insights error:', error);
-        showStatus(error.message, 'error');
-      } finally {
-        insightsBtn.disabled = false;
-        insightsBtn.innerHTML = '<span>💡</span><span>Insights → Audio</span>';
-      }
-    });
-
-    // Copy insight text handler
-    copyBtn.addEventListener('click', async () => {
-      if (!currentInsightText) return;
-      await navigator.clipboard.writeText(currentInsightText);
-      copyBtn.textContent = '✅ Copied!';
-      setTimeout(() => {
-        copyBtn.textContent = '📋 Copy';
-      }, 2000);
-    });
-
-    // Convert insights to audio (double-click on insights button)
-    insightsBtn.addEventListener('dblclick', async () => {
-      if (!currentInsightText) {
-        showStatus('Generate insights first', 'error');
-        return;
-      }
-
-      insightsBtn.disabled = true;
-      insightsBtn.innerHTML = '<div class="spinner"></div><span>Converting to audio...</span>';
-      playerSection.classList.remove('visible');
-
-      try {
-        showStatus('Converting insights to speech...', 'loading');
-
-        const speakRes = await fetch('/api/speak', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: currentInsightText,
-            voice: voiceSelect.value,
-            speed: parseFloat(speedSelect.value),
-          }),
-        });
-
-        if (!speakRes.ok) {
-          const err = await speakRes.json();
-          throw new Error(err.error || 'Failed to generate speech');
-        }
-
-        currentAudioBlob = await speakRes.blob();
-        const audioUrl = URL.createObjectURL(currentAudioBlob);
-
-        currentTitle = insightTextLabel.textContent || 'Insights';
-        articleTitle.textContent = currentTitle;
-        articleMeta.textContent = 'Insights audio';
-        audioPlayer.src = audioUrl;
-        playerSection.classList.add('visible');
-
-        showStatus('Ready to play insights!', 'success');
-
-        audioPlayer.play().catch(() => {
-          showStatus('Tap play to start', 'success');
-        });
-
-      } catch (error) {
-        console.error('Insights audio error:', error);
-        showStatus(error.message, 'error');
-      } finally {
-        insightsBtn.disabled = false;
-        insightsBtn.innerHTML = '<span>💡</span><span>Insights → Audio</span>';
-      }
-    });
-
-    // Ecosystem save handler (works with or without pre-generated insights)
-    ecosystemBtn.addEventListener('click', async () => {
-      const url = urlInput.value.trim();
-      const pdfFile = pdfInput.files[0];
-      const mdFile = mdInput.files[0];
-      const pastedText = textInput.value.trim();
-
-      // Check based on active tab
-      if (activeTab === 'url' && !url) {
-        showStatus('Please enter a URL', 'error');
-        return;
-      }
-      if (activeTab === 'pdf' && !pdfFile) {
-        showStatus('Please upload a PDF', 'error');
-        return;
-      }
-      if (activeTab === 'markdown' && !mdFile) {
-        showStatus('Please upload a Markdown file', 'error');
-        return;
-      }
-      if (activeTab === 'text' && !pastedText) {
-        showStatus('Please paste some text', 'error');
-        return;
-      }
-
-      ecosystemBtn.disabled = true;
-      ecosystemBtn.innerHTML = '<div class="spinner"></div><span>Saving to ecosystem...</span>';
-      insightTextSection.classList.remove('visible');
-
-      try {
-        let extracted;
-
-        // Extract text first
-        if (activeTab === 'text') {
-          extracted = { title: 'Pasted Text', text: pastedText };
-        } else if (activeTab === 'markdown') {
-          showStatus('Processing Markdown...', 'loading');
-          const rawMd = await mdFile.text();
-          extracted = { title: mdFile.name.replace(/\\.(md|markdown)$/i, ''), text: stripMarkdown(rawMd) };
-        } else if (activeTab === 'pdf') {
-          showStatus('Extracting PDF text...', 'loading');
-          const pdfText = await extractPdfText(pdfFile);
-          extracted = { title: pdfFile.name.replace('.pdf', ''), text: pdfText };
-        } else {
-          showStatus('Extracting article...', 'loading');
-          const extractRes = await fetch('/api/extract', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url }),
-          });
-          extracted = await extractRes.json();
-        }
-
-        // Save to ecosystem (generates insights + metadata + commits)
-        const mode = modeSelect.value;
-        showStatus('Generating insights and saving...', 'loading');
-
-        const saveRes = await fetch('/api/insights', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: extracted.text,
-            title: extracted.title,
-            mode: mode,
-            source: url || extracted.title,
-            capture: true, // This tells backend to generate + save in one go
-          }),
-        });
-
-        if (!saveRes.ok) {
-          const err = await saveRes.json();
-          throw new Error(err.error || 'Failed to save to ecosystem');
-        }
-
-        const saveData = await saveRes.json();
-        
-        // Update UI with saved insights
-        currentInsightText = saveData.text;
-        insightTextLabel.textContent = saveData.title;
-        insightTextBody.textContent = saveData.text;
-        insightTextSection.classList.add('visible');
-
-        if (saveData.ecosystemCapture?.ok) {
-          showStatus(`✅ Saved to Helix Mind! ${saveData.ecosystemCapture.url ? '- View on GitHub' : ''}`, 'success');
-          // Open GitHub URL in new tab if available
-          if (saveData.ecosystemCapture.url) {
-            setTimeout(() => {
-              window.open(saveData.ecosystemCapture.url, '_blank');
-            }, 1500);
-          }
-        } else {
-          showStatus('⚠️ Insights generated but GitHub save failed: ' + saveData.ecosystemCapture?.reason, 'error');
-        }
-
-      } catch (error) {
-        console.error('Ecosystem save error:', error);
-        showStatus(error.message, 'error');
-      } finally {
-        ecosystemBtn.disabled = false;
-        ecosystemBtn.innerHTML = '<span>📚</span><span>Save to Ecosystem</span>';
-      }
     });
 
     // Helper functions
@@ -1394,291 +1151,6 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js');
     }
-
-    // ==========================================
-    // IndexedDB Library System
-    // ==========================================
-
-    const DB_NAME = 'helix-listen-library';
-    const DB_VERSION = 1;
-    const STORE_NAME = 'audio-items';
-    const MAX_ITEMS = 5;
-
-    let db = null;
-    let currentPlayingId = null;
-
-    // Initialize IndexedDB
-    async function initDB() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          db = request.result;
-          resolve(db);
-        };
-
-        request.onupgradeneeded = (event) => {
-          const database = event.target.result;
-          if (!database.objectStoreNames.contains(STORE_NAME)) {
-            const store = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
-            store.createIndex('createdAt', 'createdAt', { unique: false });
-          }
-        };
-      });
-    }
-
-    // Save audio item to library
-    async function saveToLibrary(title, audioBlob, wordCount, duration) {
-      if (!db) await initDB();
-
-      const item = {
-        id: Date.now().toString(),
-        title,
-        audioBlob,
-        wordCount,
-        duration,
-        currentTime: 0,
-        createdAt: new Date().toISOString(),
-      };
-
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-
-        // Add new item
-        store.add(item);
-
-        tx.oncomplete = async () => {
-          // Enforce max items limit
-          await enforceMaxItems();
-          resolve(item);
-        };
-        tx.onerror = () => reject(tx.error);
-      });
-    }
-
-    // Enforce maximum items in library
-    async function enforceMaxItems() {
-      const items = await getAllItems();
-      if (items.length > MAX_ITEMS) {
-        // Sort by createdAt and remove oldest
-        items.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        const toRemove = items.slice(0, items.length - MAX_ITEMS);
-        for (const item of toRemove) {
-          await deleteItem(item.id);
-        }
-      }
-    }
-
-    // Get all items from library
-    async function getAllItems() {
-      if (!db) await initDB();
-
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.getAll();
-
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-      });
-    }
-
-    // Get single item
-    async function getItem(id) {
-      if (!db) await initDB();
-
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.get(id);
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-    }
-
-    // Update item (e.g., save playback position)
-    async function updateItem(id, updates) {
-      if (!db) await initDB();
-
-      const item = await getItem(id);
-      if (!item) return null;
-
-      const updatedItem = { ...item, ...updates };
-
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.put(updatedItem);
-
-        tx.oncomplete = () => resolve(updatedItem);
-        tx.onerror = () => reject(tx.error);
-      });
-    }
-
-    // Delete item
-    async function deleteItem(id) {
-      if (!db) await initDB();
-
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.delete(id);
-
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
-    }
-
-    // Format time for display
-    function formatTime(seconds) {
-      if (!seconds || isNaN(seconds)) return '0:00';
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    // Format date for display
-    function formatDate(isoString) {
-      const date = new Date(isoString);
-      const now = new Date();
-      const diffMs = now - date;
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-
-      if (diffMins < 1) return 'Just now';
-      if (diffMins < 60) return `${diffMins}m ago`;
-      if (diffHours < 24) return `${diffHours}h ago`;
-      if (diffDays < 7) return `${diffDays}d ago`;
-      return date.toLocaleDateString();
-    }
-
-    // Render library list
-    async function renderLibrary() {
-      const listEl = document.getElementById('library-list');
-      const items = await getAllItems();
-
-      // Sort by most recent first
-      items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-      if (items.length === 0) {
-        listEl.innerHTML = '<div class="library-empty">No saved audio yet. Convert something to get started.</div>';
-        return;
-      }
-
-      listEl.innerHTML = items.map(item => {
-        const progress = item.duration ? (item.currentTime / item.duration) * 100 : 0;
-        const isPlaying = item.id === currentPlayingId;
-        const timeInfo = item.currentTime > 0
-          ? `${formatTime(item.currentTime)} / ${formatTime(item.duration)}`
-          : formatTime(item.duration);
-
-        return `
-          <div class="library-item ${isPlaying ? 'playing' : ''}" data-id="${item.id}">
-            <div class="library-item-icon">${isPlaying ? '🔊' : '🎧'}</div>
-            <div class="library-item-info">
-              <div class="library-item-title">${item.title}</div>
-              <div class="library-item-meta">${timeInfo} • ${formatDate(item.createdAt)}</div>
-              <div class="library-item-progress">
-                <div class="library-item-progress-bar" style="width: ${progress}%"></div>
-              </div>
-            </div>
-            <button class="library-item-delete" data-id="${item.id}" title="Delete">🗑️</button>
-          </div>
-        `;
-      }).join('');
-
-      // Add click handlers
-      listEl.querySelectorAll('.library-item').forEach(el => {
-        el.addEventListener('click', (e) => {
-          if (e.target.classList.contains('library-item-delete')) return;
-          playFromLibrary(el.dataset.id);
-        });
-      });
-
-      listEl.querySelectorAll('.library-item-delete').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const id = btn.dataset.id;
-          if (id === currentPlayingId) {
-            audioPlayer.pause();
-            audioPlayer.src = '';
-            currentPlayingId = null;
-            playerSection.classList.remove('visible');
-          }
-          await deleteItem(id);
-          renderLibrary();
-        });
-      });
-    }
-
-    // Play item from library
-    async function playFromLibrary(id) {
-      const item = await getItem(id);
-      if (!item) return;
-
-      currentPlayingId = id;
-      currentAudioBlob = item.audioBlob;
-      currentTitle = item.title;
-
-      const audioUrl = URL.createObjectURL(item.audioBlob);
-      audioPlayer.src = audioUrl;
-      audioPlayer.currentTime = item.currentTime || 0;
-
-      articleTitle.textContent = item.title;
-      articleMeta.textContent = `${item.wordCount} words • ${formatTime(item.duration)}`;
-      playerSection.classList.add('visible');
-
-      audioPlayer.play().catch(() => {});
-      renderLibrary();
-    }
-
-    // Save playback position periodically
-    let savePositionTimeout = null;
-    audioPlayer.addEventListener('timeupdate', () => {
-      if (!currentPlayingId) return;
-
-      // Debounce saves to every 2 seconds
-      if (savePositionTimeout) return;
-      savePositionTimeout = setTimeout(async () => {
-        savePositionTimeout = null;
-        await updateItem(currentPlayingId, {
-          currentTime: audioPlayer.currentTime,
-          duration: audioPlayer.duration
-        });
-        renderLibrary();
-      }, 2000);
-    });
-
-    // Save position when paused
-    audioPlayer.addEventListener('pause', async () => {
-      if (!currentPlayingId) return;
-      await updateItem(currentPlayingId, {
-        currentTime: audioPlayer.currentTime,
-        duration: audioPlayer.duration
-      });
-      renderLibrary();
-    });
-
-    // Mark as complete when finished
-    audioPlayer.addEventListener('ended', async () => {
-      if (!currentPlayingId) return;
-      await updateItem(currentPlayingId, { currentTime: 0 });
-      renderLibrary();
-    });
-
-    // Update duration when audio metadata loads
-    audioPlayer.addEventListener('loadedmetadata', async () => {
-      if (!currentPlayingId) return;
-      await updateItem(currentPlayingId, { duration: audioPlayer.duration });
-      renderLibrary();
-    });
-
-    // Initialize library on page load
-    initDB().then(() => renderLibrary());
   </script>
 </body>
 </html>
