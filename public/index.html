@@ -215,6 +215,124 @@
       transform: none;
     }
 
+    .insights-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .btn-insights {
+      flex: 1;
+      padding: 14px;
+      background: rgba(168, 85, 247, 0.2);
+      border: 2px solid rgba(168, 85, 247, 0.4);
+      color: #e9d5ff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-insights:hover {
+      background: rgba(168, 85, 247, 0.3);
+      border-color: rgba(168, 85, 247, 0.6);
+    }
+
+    .mode-select-wrapper {
+      flex: 1;
+    }
+
+    #mode-select {
+      width: 100%;
+      height: 100%;
+      padding: 12px;
+      border: 2px solid rgba(168, 85, 247, 0.4);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      color: #e9d5ff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn-ecosystem {
+      width: 100%;
+      margin-top: 15px;
+      padding: 14px;
+      background: rgba(59, 130, 246, 0.2);
+      border: 2px solid rgba(59, 130, 246, 0.4);
+      color: #dbeafe;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-ecosystem:hover {
+      background: rgba(59, 130, 246, 0.3);
+      border-color: rgba(59, 130, 246, 0.6);
+    }
+
+    .insight-text-section {
+      display: none;
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .insight-text-section.visible {
+      display: block;
+    }
+
+    .insight-text-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e9d5ff;
+      margin-bottom: 15px;
+    }
+
+    .insight-text-body {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 15px;
+      border-radius: 10px;
+      color: #e8e8e8;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      margin-bottom: 15px;
+    }
+
+    .btn-copy {
+      width: 100%;
+      padding: 12px;
+      background: rgba(168, 85, 247, 0.2);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      color: #e9d5ff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-radius: 8px;
+    }
+
+    .btn-copy:hover {
+      background: rgba(168, 85, 247, 0.3);
+    }
+
     .status {
       margin-top: 20px;
       padding: 15px;
@@ -584,7 +702,40 @@
         <span>Convert to Audio</span>
       </button>
 
+      <div class="insights-row">
+        <button class="btn btn-insights" id="insights-btn">
+          <span>💡</span>
+          <span>Insights → Audio</span>
+        </button>
+        <div class="mode-select-wrapper">
+          <select id="mode-select">
+            <option value="takeaways">Key Takeaways</option>
+            <option value="executive">Executive Brief</option>
+            <option value="socratic">Socratic Dialogue</option>
+            <option value="framework">Framework Extraction</option>
+            <option value="breakthrough">Breakthrough Lens</option>
+            <option value="analogy">Analogy Mode</option>
+            <option value="cross-domain">Cross-Domain Scout</option>
+            <option value="authors-voice">Author's Voice</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn btn-ecosystem" id="ecosystem-btn">
+        <span>📚</span>
+        <span>Save to Ecosystem</span>
+      </button>
+
       <div class="status" id="status"></div>
+    </div>
+
+    <div class="insight-text-section" id="insight-text-section">
+      <div class="insight-text-header">
+        <span>🧠</span>
+        <span id="insight-text-label">Saved to Ecosystem</span>
+      </div>
+      <div class="insight-text-body" id="insight-text-body"></div>
+      <button class="btn btn-copy" id="copy-btn">📋 Copy</button>
     </div>
 
     <div class="player-section" id="player-section">
@@ -640,10 +791,20 @@
     const articleMeta = document.getElementById('article-meta');
     const audioPlayer = document.getElementById('audio-player');
     const downloadBtn = document.getElementById('download-btn');
+    
+    // Insights mode elements
+    const insightsBtn = document.getElementById('insights-btn');
+    const modeSelect = document.getElementById('mode-select');
+    const ecosystemBtn = document.getElementById('ecosystem-btn');
+    const insightTextSection = document.getElementById('insight-text-section');
+    const insightTextLabel = document.getElementById('insight-text-label');
+    const insightTextBody = document.getElementById('insight-text-body');
+    const copyBtn = document.getElementById('copy-btn');
 
     let currentAudioBlob = null;
     let currentTitle = '';
     let activeTab = 'url';
+    let currentInsightText = null;
 
     // Set default voice to British Female (WaveNet)
     voiceSelect.value = 'en-GB-Wavenet-A';
@@ -889,6 +1050,242 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    });
+
+    // Insights button handler
+    insightsBtn.addEventListener('click', async () => {
+      const url = urlInput.value.trim();
+      const pdfFile = pdfInput.files[0];
+      const mdFile = mdInput.files[0];
+      const pastedText = textInput.value.trim();
+
+      // Check based on active tab
+      if (activeTab === 'url' && !url) {
+        showStatus('Please enter a URL', 'error');
+        return;
+      }
+      if (activeTab === 'pdf' && !pdfFile) {
+        showStatus('Please upload a PDF', 'error');
+        return;
+      }
+      if (activeTab === 'markdown' && !mdFile) {
+        showStatus('Please upload a Markdown file', 'error');
+        return;
+      }
+      if (activeTab === 'text' && !pastedText) {
+        showStatus('Please paste some text', 'error');
+        return;
+      }
+
+      insightsBtn.disabled = true;
+      insightsBtn.innerHTML = '<div class="spinner"></div><span>Generating insights...</span>';
+      insightTextSection.classList.remove('visible');
+      playerSection.classList.remove('visible');
+
+      try {
+        let extracted;
+
+        // First extract the text (same as convert button)
+        if (activeTab === 'text') {
+          extracted = {
+            title: 'Pasted Text',
+            text: pastedText,
+          };
+        } else if (activeTab === 'markdown') {
+          showStatus('Processing Markdown file...', 'loading');
+          const rawMd = await mdFile.text();
+          const plainText = stripMarkdown(rawMd);
+          extracted = {
+            title: mdFile.name.replace(/\\.(md|markdown)$/i, ''),
+            text: plainText,
+          };
+        } else if (activeTab === 'pdf') {
+          showStatus('Extracting text from PDF...', 'loading');
+          const pdfText = await extractPdfText(pdfFile);
+          extracted = {
+            title: pdfFile.name.replace('.pdf', ''),
+            text: pdfText,
+          };
+        } else {
+          showStatus('Extracting article...', 'loading');
+          const extractRes = await fetch('/api/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+          });
+          extracted = await extractRes.json();
+        }
+
+        // Generate insights
+        const mode = modeSelect.value;
+        showStatus('Generating insights...', 'loading');
+
+        const insightsRes = await fetch('/api/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: extracted.text,
+            title: extracted.title,
+            mode: mode,
+          }),
+        });
+
+        if (!insightsRes.ok) {
+          const err = await insightsRes.json();
+          throw new Error(err.error || 'Failed to generate insights');
+        }
+
+        const insightsData = await insightsRes.json();
+        currentInsightText = insightsData.text;
+
+        // Show insight text
+        insightTextLabel.textContent = insightsData.title;
+        insightTextBody.textContent = insightsData.text;
+        insightTextSection.classList.add('visible');
+
+        showStatus('Insights ready! Convert to audio or save to ecosystem', 'success');
+
+      } catch (error) {
+        console.error('Insights error:', error);
+        showStatus(error.message, 'error');
+      } finally {
+        insightsBtn.disabled = false;
+        insightsBtn.innerHTML = '<span>💡</span><span>Insights → Audio</span>';
+      }
+    });
+
+    // Copy insight text handler
+    copyBtn.addEventListener('click', async () => {
+      if (!currentInsightText) return;
+      await navigator.clipboard.writeText(currentInsightText);
+      copyBtn.textContent = '✅ Copied!';
+      setTimeout(() => {
+        copyBtn.textContent = '📋 Copy';
+      }, 2000);
+    });
+
+    // Convert insights to audio (double-click on insights button)
+    insightsBtn.addEventListener('dblclick', async () => {
+      if (!currentInsightText) {
+        showStatus('Generate insights first', 'error');
+        return;
+      }
+
+      insightsBtn.disabled = true;
+      insightsBtn.innerHTML = '<div class="spinner"></div><span>Converting to audio...</span>';
+      playerSection.classList.remove('visible');
+
+      try {
+        showStatus('Converting insights to speech...', 'loading');
+
+        const speakRes = await fetch('/api/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: currentInsightText,
+            voice: voiceSelect.value,
+            speed: parseFloat(speedSelect.value),
+          }),
+        });
+
+        if (!speakRes.ok) {
+          const err = await speakRes.json();
+          throw new Error(err.error || 'Failed to generate speech');
+        }
+
+        currentAudioBlob = await speakRes.blob();
+        const audioUrl = URL.createObjectURL(currentAudioBlob);
+
+        currentTitle = insightTextLabel.textContent || 'Insights';
+        articleTitle.textContent = currentTitle;
+        articleMeta.textContent = 'Insights audio';
+        audioPlayer.src = audioUrl;
+        playerSection.classList.add('visible');
+
+        showStatus('Ready to play insights!', 'success');
+
+        audioPlayer.play().catch(() => {
+          showStatus('Tap play to start', 'success');
+        });
+
+      } catch (error) {
+        console.error('Insights audio error:', error);
+        showStatus(error.message, 'error');
+      } finally {
+        insightsBtn.disabled = false;
+        insightsBtn.innerHTML = '<span>💡</span><span>Insights → Audio</span>';
+      }
+    });
+
+    // Ecosystem save handler
+    ecosystemBtn.addEventListener('click', async () => {
+      if (!currentInsightText) {
+        showStatus('Generate insights first', 'error');
+        return;
+      }
+
+      ecosystemBtn.disabled = true;
+      ecosystemBtn.innerHTML = '<div class="spinner"></div><span>Saving...</span>';
+
+      try {
+        const url = urlInput.value.trim();
+        const pdfFile = pdfInput.files[0];
+        const mdFile = mdInput.files[0];
+        const pastedText = textInput.value.trim();
+        let extracted;
+
+        // Get the extracted text
+        if (activeTab === 'text') {
+          extracted = { title: 'Pasted Text', text: pastedText };
+        } else if (activeTab === 'markdown') {
+          const rawMd = await mdFile.text();
+          extracted = { title: mdFile.name.replace(/\\.(md|markdown)$/i, ''), text: stripMarkdown(rawMd) };
+        } else if (activeTab === 'pdf') {
+          const pdfText = await extractPdfText(pdfFile);
+          extracted = { title: pdfFile.name.replace('.pdf', ''), text: pdfText };
+        } else {
+          const extractRes = await fetch('/api/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+          });
+          extracted = await extractRes.json();
+        }
+
+        // Save to ecosystem
+        const mode = modeSelect.value;
+        const saveRes = await fetch('/api/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: extracted.text,
+            title: extracted.title,
+            mode: mode,
+            source: url || extracted.title,
+            capture: true,
+          }),
+        });
+
+        if (!saveRes.ok) {
+          const err = await saveRes.json();
+          throw new Error(err.error || 'Failed to save to ecosystem');
+        }
+
+        const saveData = await saveRes.json();
+        if (saveData.ecosystemCapture?.ok) {
+          showStatus('✅ Saved to Helix Mind ecosystem!', 'success');
+          insightTextLabel.textContent = 'Saved to Ecosystem';
+        } else {
+          showStatus('Insights generated but ecosystem save failed: ' + saveData.ecosystemCapture?.reason, 'error');
+        }
+
+      } catch (error) {
+        console.error('Ecosystem save error:', error);
+        showStatus(error.message, 'error');
+      } finally {
+        ecosystemBtn.disabled = false;
+        ecosystemBtn.innerHTML = '<span>📚</span><span>Save to Ecosystem</span>';
+      }
     });
 
     // Helper functions
