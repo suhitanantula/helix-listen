@@ -900,9 +900,20 @@
           body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef, capture: false }),
         });
 
+        // Check if response is HTML (error page) instead of JSON
+        const contentType = insightsRes.headers.get('content-type');
         if (!insightsRes.ok) {
-          const err = await insightsRes.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to generate insights');
+          const errorText = await insightsRes.text();
+          console.error('Insights API error:', errorText.substring(0, 500));
+          if (errorText.includes('<!DOCTYPE html') || errorText.includes('<html')) {
+            throw new Error('Server returned HTML instead of JSON. Check if /api/insights exists on this deployment.');
+          }
+          try {
+            const err = JSON.parse(errorText);
+            throw new Error(err.error || `API error: ${insightsRes.status}`);
+          } catch (e) {
+            throw new Error(`Failed to generate insights: ${insightsRes.status}`);
+          }
         }
 
         const insightsData = await insightsRes.json();
@@ -1018,9 +1029,20 @@
           body: JSON.stringify({ text: extracted.text, title: extracted.title, mode, source: sourceRef, capture: true }),
         });
 
+        // Check if response is HTML (error page) instead of JSON
+        const contentType = insightsRes.headers.get('content-type');
         if (!insightsRes.ok) {
-          const err = await insightsRes.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to generate insights');
+          const errorText = await insightsRes.text();
+          console.error('Insights API error:', errorText.substring(0, 500));
+          if (errorText.includes('<!DOCTYPE html') || errorText.includes('<html')) {
+            throw new Error('Server returned HTML. Make sure you deployed the insights branch.');
+          }
+          try {
+            const err = JSON.parse(errorText);
+            throw new Error(err.error || `API error: ${insightsRes.status}`);
+          } catch (e) {
+            throw new Error(`Failed: ${insightsRes.status}`);
+          }
         }
 
         const insightsData = await insightsRes.json();
