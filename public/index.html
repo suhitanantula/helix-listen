@@ -533,12 +533,39 @@
         <div class="option">
           <label for="voice-select">Voice</label>
           <select id="voice-select">
-            <option value="English_expressive_narrator">Expressive Narrator</option>
-            <option value="English_CaptivatingStoryteller">Captivating Storyteller</option>
-            <option value="English_CalmWoman">Calm Woman</option>
-            <option value="English_magnetic_voiced_man">Magnetic Man</option>
-            <option value="English_radiant_girl">Radiant Girl</option>
-            <option value="English_ManWithDeepVoice">Deep Voice</option>
+            <optgroup label="🇬🇧 UK Voices (WaveNet)">
+              <option value="en-GB-Wavenet-A">British Female (A)</option>
+              <option value="en-GB-Wavenet-B">British Male (B)</option>
+              <option value="en-GB-Wavenet-C">British Female (C)</option>
+              <option value="en-GB-Wavenet-D">British Male (D)</option>
+              <option value="en-GB-Wavenet-F">British Female (F)</option>
+            </optgroup>
+            <optgroup label="🇦🇺 Australian Voices (WaveNet)">
+              <option value="en-AU-Wavenet-A">Australian Female (A)</option>
+              <option value="en-AU-Wavenet-B">Australian Male (B)</option>
+              <option value="en-AU-Wavenet-C">Australian Female (C)</option>
+              <option value="en-AU-Wavenet-D">Australian Male (D)</option>
+            </optgroup>
+            <optgroup label="🇺🇸 US Voices (WaveNet)">
+              <option value="en-US-Wavenet-A">American Female (A)</option>
+              <option value="en-US-Wavenet-B">American Male (B)</option>
+              <option value="en-US-Wavenet-C">American Female (C)</option>
+              <option value="en-US-Wavenet-D">American Male (D)</option>
+              <option value="en-US-Wavenet-E">American Female (E)</option>
+              <option value="en-US-Wavenet-F">American Female (F)</option>
+            </optgroup>
+            <optgroup label="🇬🇧 UK Voices (Standard)">
+              <option value="en-GB-Standard-A">British Female (A)</option>
+              <option value="en-GB-Standard-B">British Male (B)</option>
+              <option value="en-GB-Standard-C">British Female (C)</option>
+              <option value="en-GB-Standard-D">British Male (D)</option>
+            </optgroup>
+            <optgroup label="🇦🇺 Australian Voices (Standard)">
+              <option value="en-AU-Standard-A">Australian Female (A)</option>
+              <option value="en-AU-Standard-B">Australian Male (B)</option>
+              <option value="en-AU-Standard-C">Australian Female (C)</option>
+              <option value="en-AU-Standard-D">Australian Male (D)</option>
+            </optgroup>
           </select>
         </div>
         <div class="option">
@@ -617,6 +644,9 @@
     let currentAudioBlob = null;
     let currentTitle = '';
     let activeTab = 'url';
+
+    // Set default voice to British Female (WaveNet)
+    voiceSelect.value = 'en-GB-Wavenet-A';
 
     // Tab switching
     document.querySelectorAll('.tab').forEach(tab => {

@@ -1,4 +1,4 @@
-// API endpoint to convert text to speech using MiniMax TTS
+// API endpoint to convert text to speech using Google Cloud Text-to-Speech
 
 export const config = {
   maxDuration: 300, // 5 minutes max for long documents
@@ -17,7 +17,7 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
 
       // Check for rate limit (429) or server errors (5xx)
       if (response.status === 429 || response.status >= 500) {
-        const waitTime = Math.pow(2, attempt) * 1000 + Math.random() * 1000; // Exponential backoff with jitter
+        const waitTime = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
         console.log(`Rate limited or server error (${response.status}), waiting ${Math.round(waitTime)}ms before retry ${attempt + 1}/${maxRetries}`);
         await delay(waitTime);
         continue;
@@ -49,21 +49,60 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.MINIMAX_API_KEY;
-  const groupId = process.env.MINIMAX_GROUP_ID;
-  if (!apiKey || !groupId) {
-    return res.status(500).json({ error: 'MiniMax API key or Group ID not configured' });
+  const apiKey = process.env.GOOGLE_CLOUD_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Google Cloud API key not configured' });
   }
 
   try {
-    const { text, voice = 'English_expressive_narrator', speed = 1.0 } = req.body;
+    const { text, voice = 'en-US-Standard-A', speed = 1.0 } = req.body;
 
     if (!text) {
       return res.status(400).json({ error: 'No text provided' });
     }
 
-    // Split into chunks (MiniMax supports up to 10,000 chars, use 8,000 for safety)
-    const maxChunkSize = 8000;
+    // Validate voice to prevent API errors
+    const validVoices = [
+      // US Voices
+      'en-US-Standard-A', 'en-US-Standard-B', 'en-US-Standard-C', 'en-US-Standard-D',
+      'en-US-Standard-E', 'en-US-Standard-F', 'en-US-Standard-G', 'en-US-Standard-H',
+      'en-US-Standard-I', 'en-US-Standard-J',
+      'en-US-Wavenet-A', 'en-US-Wavenet-B', 'en-US-Wavenet-C', 'en-US-Wavenet-D',
+      'en-US-Wavenet-E', 'en-US-Wavenet-F', 'en-US-Wavenet-G', 'en-US-Wavenet-H',
+      'en-US-Wavenet-I', 'en-US-Wavenet-J',
+      // UK Voices
+      'en-GB-Standard-A', 'en-GB-Standard-B', 'en-GB-Standard-C', 'en-GB-Standard-D',
+      'en-GB-Standard-F', 'en-GB-Standard-H', 'en-GB-Standard-I',
+      'en-GB-Wavenet-A', 'en-GB-Wavenet-B', 'en-GB-Wavenet-C', 'en-GB-Wavenet-D',
+      'en-GB-Wavenet-F', 'en-GB-Wavenet-H', 'en-GB-Wavenet-I',
+      // Australian Voices
+      'en-AU-Standard-A', 'en-AU-Standard-B', 'en-AU-Standard-C', 'en-AU-Standard-D',
+      'en-AU-Wavenet-A', 'en-AU-Wavenet-B', 'en-AU-Wavenet-C', 'en-AU-Wavenet-D',
+      // Other English variants
+      'en-IN-Standard-A', 'en-IN-Standard-B', 'en-IN-Standard-C', 'en-IN-Standard-D',
+      'en-IN-Wavenet-A', 'en-IN-Wavenet-B', 'en-IN-Wavenet-C', 'en-IN-Wavenet-D',
+    ];
+
+    // Determine voice gender and accent for auto-selection
+    let languageCode = 'en-US';
+    let ssmlGender = 'FEMALE';
+    
+    if (voice.includes('GB')) {
+      languageCode = 'en-GB';
+    } else if (voice.includes('AU')) {
+      languageCode = 'en-AU';
+    } else if (voice.includes('IN')) {
+      languageCode = 'en-IN';
+    }
+
+    // Auto-detect gender based on voice name (A, C, E, F, H = Female; B, D, G, I, J = Male)
+    const lastChar = voice.slice(-1);
+    if (['B', 'D', 'G', 'I', 'J'].includes(lastChar)) {
+      ssmlGender = 'MALE';
+    }
+
+    // Split into chunks (Google Cloud TTS supports up to 5,000 chars per request)
+    const maxChunkSize = 5000;
     const chunks = [];
     for (let i = 0; i < text.length; i += maxChunkSize) {
       chunks.push(text.slice(i, i + maxChunkSize));
@@ -71,56 +110,51 @@ export default async function handler(req, res) {
 
     // Process chunks sequentially with delay between requests
     const audioBuffers = [];
-    const delayBetweenChunks = 500; // 500ms between chunks to avoid rate limits
+    const delayBetweenChunks = 500;
 
     for (let i = 0; i < chunks.length; i++) {
-      // Add delay between chunks (not before first)
       if (i > 0) {
         await delay(delayBetweenChunks);
       }
 
       const response = await fetchWithRetry(
-        `https://api.minimaxi.chat/v1/t2a_v2?GroupId=${groupId}`,
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'speech-2.6-hd',
-            text: chunks[i],
-            voice_setting: {
-              voice_id: voice,
-              speed: speed,
+            input: {
+              text: chunks[i],
             },
-            audio_setting: {
-              format: 'mp3',
-              audio_sample_rate: 32000,
-              bitrate: 128000,
+            voice: {
+              languageCode: languageCode,
+              name: voice,
+              ssmlGender: ssmlGender,
+            },
+            audioConfig: {
+              audioEncoding: 'MP3',
+              speakingRate: speed,
+              pitch: 0.0,
             },
           }),
         },
-        3 // max retries
+        3
       );
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.base_resp?.status_msg || `MiniMax API error: ${response.status}`);
+        throw new Error(errData.error?.message || `Google Cloud TTS API error: ${response.status}`);
       }
 
       const data = await response.json();
 
-      if (data.base_resp && data.base_resp.status_code !== 0) {
-        throw new Error(data.base_resp.status_msg || 'MiniMax API returned an error');
+      if (!data.audioContent) {
+        throw new Error('No audio data in Google Cloud TTS response');
       }
 
-      const audioHex = data.data?.audio;
-      if (!audioHex) {
-        throw new Error('No audio data in MiniMax response');
-      }
-
-      audioBuffers.push(Buffer.from(audioHex, 'hex'));
+      audioBuffers.push(Buffer.from(data.audioContent, 'base64'));
     }
 
     // Concatenate all audio buffers
