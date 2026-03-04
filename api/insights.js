@@ -196,7 +196,16 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+  
+  console.log('=== INSIGHTS API CALLED ===');
+  console.log('ANTHROPIC_API_KEY present:', !!apiKey);
+  console.log('Request body mode:', req.body?.mode);
+  console.log('Request body text length:', req.body?.text?.length);
+  
+  if (!apiKey) {
+    console.error('ERROR: ANTHROPIC_API_KEY not configured');
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+  }
 
   const { text, title = 'Article', mode = 'takeaways', source, capture = false } = req.body;
 
@@ -207,6 +216,7 @@ export default async function handler(req, res) {
 
   try {
     const client = new Anthropic({ apiKey });
+    console.log('Anthropic client created, calling API...');
 
     // For audio path (capture=false): only run insight generation — fast
     // For ecosystem path (capture=true): run both in parallel then commit to GitHub
