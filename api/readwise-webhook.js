@@ -227,29 +227,28 @@ export default async function handler(req, res) {
   const payload = req.body;
   console.log('=== READWISE WEBHOOK ===', JSON.stringify(payload, null, 2));
 
-  // Readwise webhook payload shape: { event: 'reader.document.tags_updated', document: { id, url, title, tags, ... } }
-  const doc = payload?.document || payload;
-  const documentId = doc?.id;
-  const tags = doc?.tags || [];
+  // readwise.highlight.tag_added payload:
+  // { event, highlight: { id, text, book_id, tags: [{name}] }, tag: {name} }
+  const tagName = (payload?.tag?.name || '').toLowerCase();
+  const highlight = payload?.highlight;
 
-  // Only proceed if the helixbrief tag is present — that's our quality signal
-  const tagNames = Array.isArray(tags)
-    ? tags.map(t => (typeof t === 'string' ? t : t?.name || t?.slug || '').toLowerCase())
-    : [];
-
-  const hasHelixBrief = tagNames.includes('helixbrief');
-
-  if (!hasHelixBrief) {
-    console.log('No helixbrief tag — skipping. Tags found:', tagNames);
-    return res.status(200).json({ skipped: true, reason: 'No helixbrief tag' });
+  // Only proceed if the helixbrief tag was the one added
+  if (tagName !== 'helixbrief') {
+    console.log('Tag is not helixbrief — skipping. Tag:', tagName);
+    return res.status(200).json({ skipped: true, reason: `Tag is ${tagName || 'unknown'}` });
   }
 
-  console.log('helixbrief tag found — proceeding');
+  console.log('helixbrief tag added — proceeding');
 
-  // Re-fetch the document to get the latest state (webhook may have partial data)
+  // Use book_id to fetch the parent document from Reader
+  const bookId = highlight?.book_id;
+  if (!bookId) {
+    return res.status(400).json({ error: 'No book_id on highlight payload' });
+  }
+
   let document;
   try {
-    document = await fetchReaderDocument(documentId);
+    document = await fetchReaderDocument(bookId);
   } catch (err) {
     console.error('Failed to fetch document:', err.message);
     return res.status(500).json({ error: err.message });
@@ -257,7 +256,7 @@ export default async function handler(req, res) {
 
   const articleUrl = document.source_url || document.url;
   const title = document.title || 'Untitled';
-  const note = document.notes?.trim() || null;
+  const note = highlight?.text ? `Highlight: "${highlight.text}"` : (document.notes?.trim() || null);
 
   if (!articleUrl) {
     return res.status(400).json({ error: 'No article URL on document' });
