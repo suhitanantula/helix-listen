@@ -225,13 +225,13 @@ export default async function handler(req, res) {
     if (capture) {
       const [insightMsg, metadataMsg] = await Promise.all([
         client.messages.create({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-5',
           max_tokens: 1500,
           system: systemPrompt,
           messages: [{ role: 'user', content: `Title: ${title}\n\n${text}` }],
         }),
         client.messages.create({
-          model: 'claude-3-haiku-20240307',
+          model: 'claude-haiku-4-5',
           max_tokens: 800,
           system: ECOSYSTEM_METADATA_PROMPT,
           messages: [{ role: 'user', content: `Title: ${title}\n\n${text.slice(0, 3000)}` }],
@@ -253,7 +253,7 @@ export default async function handler(req, res) {
     } else {
       // Audio path — insight only, no metadata, no GitHub commit
       const insightMsg = await client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: 'user', content: `Title: ${title}\n\n${text}` }],
