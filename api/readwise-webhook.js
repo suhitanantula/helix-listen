@@ -223,14 +223,6 @@ export default async function handler(req, res) {
   // Readwise sends POST for webhook events
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Optional shared secret validation
-  const secret = process.env.READWISE_WEBHOOK_SECRET;
-  if (secret) {
-    const provided = req.headers['x-readwise-secret'] || req.headers['authorization'];
-    if (provided !== secret && provided !== `Token ${secret}`) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-  }
 
   const payload = req.body;
   console.log('=== READWISE WEBHOOK ===', JSON.stringify(payload, null, 2));
