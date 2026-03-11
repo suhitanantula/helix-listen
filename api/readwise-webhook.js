@@ -283,13 +283,13 @@ export default async function handler(req, res) {
   try {
     const [insightMsg, metadataMsg] = await Promise.all([
       client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1500,
         system: INSIGHT_PROMPT,
         messages: [{ role: 'user', content: `Title: ${title}\n\n${articleText}` }],
       }),
       client.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5',
         max_tokens: 800,
         system: ECOSYSTEM_METADATA_PROMPT,
         messages: [{ role: 'user', content: `Title: ${title}\n\n${articleText.slice(0, 3000)}` }],

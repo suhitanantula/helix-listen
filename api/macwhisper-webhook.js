@@ -204,13 +204,13 @@ export default async function handler(req, res) {
   try {
     const [briefMsg, structuredMsg] = await Promise.all([
       client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1500,
         system: EXECUTIVE_BRIEF_PROMPT,
         messages: [{ role: 'user', content: `Title: ${title}\n\n${transcript}` }],
       }),
       client.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5',
         max_tokens: 600,
         system: ACTION_ITEMS_PROMPT,
         messages: [{ role: 'user', content: `Title: ${title}\n\n${transcript.slice(0, 4000)}` }],
