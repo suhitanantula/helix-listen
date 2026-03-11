@@ -86,7 +86,7 @@ function buildEcosystemFile({ title, source, userNote, insightText, metadata, or
 
 **Source:** ${source}
 **Date Ingested:** ${date} (Adelaide time)
-**Trigger:** Document note added in Readwise Reader
+**Trigger:** #helixbrief tag added in Readwise Reader
 **Insight Mode:** ${MODE_NAME}
 
 ---
@@ -235,18 +235,24 @@ export default async function handler(req, res) {
   const payload = req.body;
   console.log('=== READWISE WEBHOOK ===', JSON.stringify(payload, null, 2));
 
-  // Readwise webhook payload shape: { event: 'document.updated', document: { id, url, title, notes, ... } }
+  // Readwise webhook payload shape: { event: 'reader.document.tags_updated', document: { id, url, title, tags, ... } }
   const doc = payload?.document || payload;
   const documentId = doc?.id;
-  const userNote = doc?.notes?.trim();
+  const tags = doc?.tags || [];
 
-  // Only proceed if document has a note — that's our quality signal
-  if (!userNote) {
-    console.log('No document note — skipping');
-    return res.status(200).json({ skipped: true, reason: 'No document note' });
+  // Only proceed if the helixbrief tag is present — that's our quality signal
+  const tagNames = Array.isArray(tags)
+    ? tags.map(t => (typeof t === 'string' ? t : t?.name || t?.slug || '').toLowerCase())
+    : [];
+
+  const hasHelixBrief = tagNames.includes('helixbrief');
+
+  if (!hasHelixBrief) {
+    console.log('No helixbrief tag — skipping. Tags found:', tagNames);
+    return res.status(200).json({ skipped: true, reason: 'No helixbrief tag' });
   }
 
-  console.log(`Document note found: "${userNote.slice(0, 80)}..." — proceeding`);
+  console.log('helixbrief tag found — proceeding');
 
   // Re-fetch the document to get the latest state (webhook may have partial data)
   let document;
@@ -259,7 +265,7 @@ export default async function handler(req, res) {
 
   const articleUrl = document.source_url || document.url;
   const title = document.title || 'Untitled';
-  const note = document.notes?.trim() || userNote;
+  const note = document.notes?.trim() || null;
 
   if (!articleUrl) {
     return res.status(400).json({ error: 'No article URL on document' });
