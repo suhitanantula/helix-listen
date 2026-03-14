@@ -8,6 +8,10 @@ export const config = {
   maxDuration: 90,
 };
 
+// Use pinned Anthropic model snapshots that match the documented API model IDs.
+const INSIGHT_MODEL = 'claude-sonnet-4-20250514';
+const METADATA_MODEL = 'claude-3-5-haiku-20241022';
+
 const MODE_NAMES = {
   takeaways: 'Key Takeaways',
   executive: 'Executive Brief',
@@ -225,13 +229,13 @@ export default async function handler(req, res) {
     if (capture) {
       const [insightMsg, metadataMsg] = await Promise.all([
         client.messages.create({
-          model: 'claude-sonnet-4-5',
+          model: INSIGHT_MODEL,
           max_tokens: 1500,
           system: systemPrompt,
           messages: [{ role: 'user', content: `Title: ${title}\n\n${text}` }],
         }),
         client.messages.create({
-          model: 'claude-haiku-4-5',
+          model: METADATA_MODEL,
           max_tokens: 800,
           system: ECOSYSTEM_METADATA_PROMPT,
           messages: [{ role: 'user', content: `Title: ${title}\n\n${text.slice(0, 3000)}` }],
@@ -253,7 +257,7 @@ export default async function handler(req, res) {
     } else {
       // Audio path — insight only, no metadata, no GitHub commit
       const insightMsg = await client.messages.create({
-        model: 'claude-sonnet-4-5',
+        model: INSIGHT_MODEL,
         max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: 'user', content: `Title: ${title}\n\n${text}` }],
