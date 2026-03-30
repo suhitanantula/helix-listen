@@ -31,24 +31,48 @@ Analyze this article and return:
   "summary": "2-3 sentence executive summary of the core argument",
   "llv": {
     "dominant": "Lines|Loops|Vibes",
-    "signature": "e.g. ▲▲⟳",
+    "signature": "e.g. ▲▲⟳〰️ — brief description",
     "frequency": "20Hz|60Hz|90Hz|95Hz",
-    "why": "1 sentence justification"
+    "why": "2-3 sentences explaining the LLV classification with specific evidence from the article. Note which of Lines/Loops/Vibes are present and why."
   },
   "frameworks": [
-    {"name": "LLV", "relevance": "★★★|★★|★|—", "connection": "brief note"},
-    {"name": "Co-Intelligence", "relevance": "★★★|★★|★|—", "connection": "brief note"},
-    {"name": "Navigator/Capability Maturity", "relevance": "★★★|★★|★|—", "connection": "brief note"},
-    {"name": "AAA (Assist→Augment→Adapt)", "relevance": "★★★|★★|★|—", "connection": "brief note"},
-    {"name": "Strategic Intelligence as Code", "relevance": "★★★|★★|★|—", "connection": "brief note"}
+    {"name": "LLV", "relevance": "★★★|★★|★|—", "connection": "specific connection to article content"},
+    {"name": "Co-Intelligence", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "Navigator / Capability Maturity", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "AAA (Assist→Augment→Adapt)", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "GAIN", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "Helix Rhythm", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "5As", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "5Ps", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "5×5 Grid", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "4D Diagnostic", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "Strategic Intelligence as Code", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "Helix Mind", "relevance": "★★★|★★|★|—", "connection": "specific connection"},
+    {"name": "Probes", "relevance": "★★★|★★|★|—", "connection": "specific connection"}
+  ],
+  "markets": [
+    {"name": "Local Government / Councils", "relevance": "★★★|★★|★|—", "application": "specific application for this market"},
+    {"name": "State Government / Public Sector", "relevance": "★★★|★★|★|—", "application": "specific application"},
+    {"name": "Enterprise / Large Organizations", "relevance": "★★★|★★|★|—", "application": "specific application"},
+    {"name": "Aged Care / NFPs", "relevance": "★★★|★★|★|—", "application": "specific application"},
+    {"name": "Professional Services", "relevance": "★★★|★★|★|—", "application": "specific application"}
   ],
   "keyInsights": [
-    {"title": "short title", "description": "one sentence"},
-    {"title": "short title", "description": "one sentence"},
-    {"title": "short title", "description": "one sentence"}
+    {"title": "short title", "description": "2-3 sentences with specific detail from the article"},
+    {"title": "short title", "description": "2-3 sentences with specific detail"},
+    {"title": "short title", "description": "2-3 sentences with specific detail"},
+    {"title": "short title", "description": "2-3 sentences with specific detail"},
+    {"title": "short title", "description": "2-3 sentences with specific detail"}
   ],
-  "topQuote": "the single most quotable line from the article",
-  "marketRelevance": "1 sentence on which of your 5 markets this applies to most"
+  "quotes": [
+    "most quotable line from the article",
+    "second strong quote",
+    "third strong quote"
+  ],
+  "integrationNotes": {
+    "connectsTo": ["brief note on related topic or framework in helix ecosystem", "another connection"],
+    "potentialApplications": ["specific client or project application", "another application"]
+  }
 }`;
 
 function toSlug(str) {
@@ -75,18 +99,42 @@ function buildEcosystemFile({ title, source, userNote, insightText, metadata, or
   const m = metadata;
 
   const frameworkTable = m.frameworks.map(f =>
-    `| ${f.name} | ${f.relevance} | ${f.connection} |`
+    `| **${f.name}** | ${f.relevance} | ${f.connection} |`
   ).join('\n');
+
+  const marketTable = (m.markets || []).map(mk =>
+    `| **${mk.name}** | ${mk.relevance} | ${mk.application} |`
+  ).join('\n');
+
+  const keyInsightsSection = m.keyInsights.map((k, i) =>
+    `### ${i + 1}. ${k.title}\n${k.description}`
+  ).join('\n\n');
+
+  const quotesSection = (m.quotes || [m.topQuote]).filter(Boolean).map(q =>
+    `> "${q}"`
+  ).join('\n\n');
 
   const noteSection = userNote
     ? `## Your Note\n\n> ${userNote}\n\n---\n\n`
     : '';
 
+  const integrationSection = m.integrationNotes ? `## Integration Notes
+
+**Connects to existing work:**
+${(m.integrationNotes.connectsTo || []).map(c => `- ${c}`).join('\n')}
+
+**Potential applications:**
+${(m.integrationNotes.potentialApplications || []).map(a => `- ${a}`).join('\n')}
+
+---
+
+` : '';
+
   return `# ${title}
 
 **Source:** ${source}
 **Date Ingested:** ${date} (Adelaide time)
-**Trigger:** #helixbrief tag added in Readwise Reader
+**Ingested By:** Helix Listen via #helixbrief
 **Insight Mode:** ${MODE_NAME}
 
 ---
@@ -108,7 +156,9 @@ ${m.summary}
 **Dominant Rhythm:** ${m.llv.dominant}
 **Signature:** ${m.llv.signature}
 **Frequency:** ${m.llv.frequency}
-**Why:** ${m.llv.why}
+
+**Why:**
+${m.llv.why}
 
 ---
 
@@ -122,23 +172,25 @@ ${frameworkTable}
 
 ## Market Relevance
 
-${m.marketRelevance}
+| Market | Relevance | Application |
+|--------|-----------|-------------|
+${marketTable}
 
 ---
 
 ## Key Insights
 
-${m.keyInsights.map((k, i) => `${i + 1}. **${k.title}:** ${k.description}`).join('\n')}
+${keyInsightsSection}
 
 ---
 
 ## Quotable Passages
 
-> "${m.topQuote}"
+${quotesSection}
 
 ---
 
-## Full Content
+${integrationSection}## Full Content
 
 ${bodyText}
 `;
