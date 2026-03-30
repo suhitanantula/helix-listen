@@ -9,8 +9,8 @@ export const config = {
 };
 
 // Use pinned Anthropic model snapshots that match the documented API model IDs.
-const INSIGHT_MODEL = 'claude-sonnet-4-20250514';
-const METADATA_MODEL = 'claude-3-5-haiku-20241022';
+const INSIGHT_MODEL = 'claude-sonnet-4-6';
+const METADATA_MODEL = 'claude-haiku-4-5-20251001';
 
 const MODE_NAMES = {
   takeaways: 'Key Takeaways',

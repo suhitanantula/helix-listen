@@ -479,6 +479,83 @@
       color: #666;
       margin-top: 8px;
     }
+
+    /* Readwise tab */
+    .readwise-load-btn {
+      width: 100%;
+      padding: 12px;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .readwise-load-btn:hover {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: rgba(99, 102, 241, 0.6);
+    }
+    .readwise-load-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .readwise-article-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .readwise-article {
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .readwise-article:hover {
+      background: rgba(99, 102, 241, 0.1);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+    .readwise-article.selected {
+      background: rgba(99, 102, 241, 0.18);
+      border-color: #818cf8;
+    }
+    .readwise-article-title {
+      font-size: 0.85rem;
+      color: #e0e0e0;
+      margin-bottom: 3px;
+      line-height: 1.3;
+    }
+    .readwise-article-meta {
+      font-size: 0.75rem;
+      color: #666;
+    }
+    .readwise-load-more {
+      text-align: center;
+      padding: 8px;
+      font-size: 0.8rem;
+      color: #818cf8;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .readwise-load-more:hover {
+      color: #a5b4fc;
+    }
+    .readwise-selected-label {
+      font-size: 0.75rem;
+      color: #818cf8;
+      margin-top: 8px;
+      min-height: 18px;
+    }
   </style>
 </head>
 <body>
@@ -491,8 +568,9 @@
       <div class="tabs">
         <button class="tab active" data-tab="url">URL</button>
         <button class="tab" data-tab="pdf">PDF</button>
-        <button class="tab" data-tab="markdown">Markdown</button>
-        <button class="tab" data-tab="text">Paste Text</button>
+        <button class="tab" data-tab="markdown">MD</button>
+        <button class="tab" data-tab="text">Paste</button>
+        <button class="tab" data-tab="readwise">📚 Readwise</button>
       </div>
 
       <!-- URL Tab -->
@@ -538,6 +616,15 @@
           <label for="text-input">Paste your text</label>
           <textarea id="text-input" placeholder="Paste article text here..."></textarea>
         </div>
+      </div>
+
+      <!-- Readwise Tab -->
+      <div class="tab-content" id="tab-readwise">
+        <button class="readwise-load-btn" id="readwise-load-btn">
+          <span>📚</span><span>Load from Readwise</span>
+        </button>
+        <div class="readwise-article-list" id="readwise-article-list"></div>
+        <div class="readwise-selected-label" id="readwise-selected-label"></div>
       </div>
 
       <div class="options">
@@ -658,6 +745,90 @@
     let currentTitle = '';
     let activeTab = 'url';
 
+    // Readwise state
+    let readwiseSelected = null;
+    let readwiseNextCursor = null;
+    const readwiseLoadBtn = document.getElementById('readwise-load-btn');
+    const readwiseArticleList = document.getElementById('readwise-article-list');
+    const readwiseSelectedLabel = document.getElementById('readwise-selected-label');
+
+    readwiseLoadBtn.addEventListener('click', () => loadReadwiseArticles(null));
+
+    async function loadReadwiseArticles(cursor) {
+      readwiseLoadBtn.disabled = true;
+      readwiseLoadBtn.innerHTML = '<div class="spinner"></div><span>Loading...</span>';
+      try {
+        const url = cursor ? `/api/readwise?cursor=${encodeURIComponent(cursor)}` : '/api/readwise';
+        const res = await fetch(url);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+          throw new Error(err.error || 'Failed to load Readwise articles');
+        }
+        const data = await res.json();
+        if (!cursor) readwiseArticleList.innerHTML = '';
+        renderReadwiseArticles(data.articles);
+        readwiseNextCursor = data.nextCursor;
+        if (data.nextCursor) {
+          const loadMore = document.createElement('div');
+          loadMore.className = 'readwise-load-more';
+          loadMore.textContent = 'Load more →';
+          loadMore.addEventListener('click', () => {
+            loadMore.remove();
+            loadReadwiseArticles(readwiseNextCursor);
+          });
+          readwiseArticleList.appendChild(loadMore);
+        }
+      } catch (e) {
+        showStatus(e.message, 'error');
+      } finally {
+        readwiseLoadBtn.disabled = false;
+        readwiseLoadBtn.innerHTML = '<span>🔄</span><span>Refresh</span>';
+      }
+    }
+
+    function renderReadwiseArticles(articles) {
+      articles.forEach(article => {
+        const div = document.createElement('div');
+        div.className = 'readwise-article';
+        div.dataset.id = article.id;
+        div.innerHTML = `
+          <div class="readwise-article-title">${escapeHtml(article.title)}</div>
+          <div class="readwise-article-meta">${article.author ? escapeHtml(article.author) + ' · ' : ''}${article.wordCount ? article.wordCount + ' words' : ''}</div>
+        `;
+        div.addEventListener('click', () => selectReadwiseArticle(article, div));
+        readwiseArticleList.insertBefore(div, readwiseArticleList.querySelector('.readwise-load-more'));
+      });
+    }
+
+    async function selectReadwiseArticle(article, el) {
+      document.querySelectorAll('.readwise-article').forEach(a => a.classList.remove('selected'));
+      el.classList.add('selected');
+      readwiseSelected = null;
+      readwiseSelectedLabel.textContent = 'Fetching article text...';
+      try {
+        const res = await fetch('/api/readwise', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentId: article.id }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+          throw new Error(err.error || 'Failed to fetch article');
+        }
+        const data = await res.json();
+        readwiseSelected = data;
+        readwiseSelectedLabel.textContent = `✓ Selected: ${data.title} (${data.wordCount} words)`;
+      } catch (e) {
+        el.classList.remove('selected');
+        readwiseSelectedLabel.textContent = '';
+        showStatus(e.message, 'error');
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     // Tab switching
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -749,6 +920,10 @@
         showStatus('Please paste some text', 'error');
         return;
       }
+      if (activeTab === 'readwise' && !readwiseSelected) {
+        showStatus('Select an article from Readwise first', 'error');
+        return;
+      }
 
       convertBtn.disabled = true;
       convertBtn.innerHTML = '<div class="spinner"></div><span>Processing...</span>';
@@ -757,7 +932,10 @@
       try {
         let extracted;
 
-        if (activeTab === 'text') {
+        if (activeTab === 'readwise') {
+          // Already fetched — use stored article
+          extracted = readwiseSelected;
+        } else if (activeTab === 'text') {
           // Direct text - skip extraction API
           const wordCount = pastedText.split(/\s+/).length;
           extracted = {
@@ -971,9 +1149,13 @@
       if (activeTab === 'pdf' && !pdfFile) { showStatus('Please upload a PDF', 'error'); return null; }
       if (activeTab === 'markdown' && !mdFile) { showStatus('Please upload a Markdown file', 'error'); return null; }
       if (activeTab === 'text' && !pastedText) { showStatus('Please paste some text', 'error'); return null; }
+      if (activeTab === 'readwise' && !readwiseSelected) { showStatus('Select an article from Readwise first', 'error'); return null; }
 
       let extracted, sourceRef;
-      if (activeTab === 'text') {
+      if (activeTab === 'readwise') {
+        extracted = readwiseSelected;
+        sourceRef = readwiseSelected.sourceUrl || 'Readwise Reader';
+      } else if (activeTab === 'text') {
         const wordCount = pastedText.split(/\s+/).length;
         extracted = { title: 'Pasted Text', text: pastedText, wordCount, estimatedMinutes: Math.ceil(wordCount / 150) };
         sourceRef = 'Pasted text';
