@@ -1,0 +1,37 @@
+name: Verify and deploy production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: helix-listen-production-${{ matrix.name }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: helix-listen
+            project_id: prj_DrO3m91NEUtRhdb10LAb0DGWAyH2
+          - name: listen-app
+            project_id: prj_LXEY6sbzYFFiF0jzo5BKv6BZfMYE
+          - name: helix-listen-insights
+            project_id: prj_bdqH6WZOCIkGSeFzLbcuu4l8kEMo
+    permissions:
+      contents: read
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ matrix.project_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Vercel CLI
+        run: npm install --global vercel@59.10.0
+      - name: Deploy ${{ matrix.name }}
+        run: |
+          rm -rf .git
+          vercel deploy --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
