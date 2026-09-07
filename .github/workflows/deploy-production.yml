@@ -5,13 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
-concurrency:
-  group: helix-listen-production-${{ matrix.name }}
-  cancel-in-progress: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: helix-listen-production-${{ matrix.name }}
+      cancel-in-progress: true
     strategy:
       fail-fast: false
       matrix:
